@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Quarter Focus",
+  "version": "1.0",
+  "description": "A Pomodoro timer focused on simplicity and daily task tracking",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms",
+    "windows"
+  ],
+  "web_accessible_resources": [{
+    "resources": ["notification.wav"],
+    "matches": ["<all_urls>"]
+  }],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
