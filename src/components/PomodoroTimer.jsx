@@ -1,22 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Pause } from 'lucide-react';
+import { Play, Pause, Square, Clock } from 'lucide-react';
 import TaskArchiveModal from './TaskArchiveModal';
+import StrategyModal from './StrategyModal';
 
 const PomodoroTimer = () => {
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [isActive, setIsActive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentTask, setCurrentTask] = useState('');
+  const [timerState, setTimerState] = useState({
+    timeLeft: 25 * 60,
+    isActive: false,
+    isPaused: false,
+    isBreak: false
+  });
   const [completedTasks, setCompletedTasks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isBreak, setIsBreak] = useState(false);
-  // New state for archive modal
+  const [currentTask, setCurrentTask] = useState('');
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
+  const [dailyStrategy, setDailyStrategy] = useState({ keyTask: '', secondaryTask: '' });
   const [archivedTasks, setArchivedTasks] = useState([]);
   const [notificationSound, setNotificationSound] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showTaskDropdown, setShowTaskDropdown] = useState(false);
 
-  // Initialize sound with user interaction
   useEffect(() => {
+    // Initialize sound with user interaction
     const initializeSound = async () => {
       try {
         console.log('Initializing notification sound...');
@@ -75,10 +80,7 @@ const PomodoroTimer = () => {
   useEffect(() => {
     const messageListener = async (message) => {
       if (message.type === 'STATE_UPDATE') {
-        setTimeLeft(message.state.timeLeft);
-        setIsActive(message.state.isActive);
-        setIsPaused(message.state.isPaused);
-        setIsBreak(message.state.isBreak);
+        setTimerState(message.state);
       } else if (message.type === 'PLAY_NOTIFICATION_SOUND') {
         console.log('Received play notification sound message');
         
@@ -121,32 +123,32 @@ const PomodoroTimer = () => {
   }, [notificationSound]);
 
   useEffect(() => {
-    const messageListener = (message) => {
-      if (message.type === 'STATE_UPDATE') {
-        setTimeLeft(message.state.timeLeft);
-        setIsActive(message.state.isActive);
-        setIsPaused(message.state.isPaused);
-        setIsBreak(message.state.isBreak);
+    const handleClickOutside = (event) => {
+      if (showTaskDropdown && !event.target.closest('.task-dropdown-container')) {
+        setShowTaskDropdown(false);
       }
     };
 
-    chrome.runtime.onMessage.addListener(messageListener);
-    return () => chrome.runtime.onMessage.removeListener(messageListener);
-  }, []);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTaskDropdown]);
 
   useEffect(() => {
+    // Load daily strategy on component mount
+    chrome.storage.local.get(['dailyStrategy'], (result) => {
+      if (result.dailyStrategy && result.dailyStrategy.date === new Date().toLocaleDateString()) {
+        setDailyStrategy(result.dailyStrategy);
+      }
+    });
+
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
       if (response) {
-        setTimeLeft(response.timeLeft);
-        setIsActive(response.isActive);
-        setIsPaused(response.isPaused);
-        setIsBreak(response.isBreak);
-        setCurrentTask(response.currentTask || '');
+        setTimerState(response);
       }
       setIsLoading(false);
     });
 
-    chrome.storage.local.get(['completedTasks', 'lastUpdateDate', 'archivedTasks'], (result) => {
+    chrome.storage.local.get(['completedTasks', 'lastUpdateDate', 'archivedTasks', 'dailyStrategy'], (result) => {
       const today = new Date().toDateString();
       if (result.lastUpdateDate !== today) {
         // Archive yesterday's tasks before clearing
@@ -163,23 +165,29 @@ const PomodoroTimer = () => {
           }
         }
         
+        // Clear both completed tasks and daily strategy for the new day
         chrome.storage.local.set({ 
           completedTasks: [],
           lastUpdateDate: today,
-          archivedTasks: archivedTasks
+          archivedTasks: archivedTasks,
+          dailyStrategy: { date: today } // Reset strategy but keep date updated
         });
         setCompletedTasks([]);
-      } else if (result.completedTasks) {
-        setCompletedTasks(result.completedTasks);
+        setDailyStrategy({ date: today }); // Reset strategy in state
+      } else {
+        // It's still the same day, load existing data
+        if (result.completedTasks) {
+          setCompletedTasks(result.completedTasks);
+        }
+        if (result.dailyStrategy) {
+          setDailyStrategy(result.dailyStrategy);
+        }
       }
     });
 
     const listener = (message) => {
       if (message.type === 'STATE_UPDATE') {
-        setTimeLeft(message.state.timeLeft);
-        setIsActive(message.state.isActive);
-        setIsPaused(message.state.isPaused);
-        setIsBreak(message.state.isBreak);
+        setTimerState(message.state);
       }
     };
 
@@ -201,42 +209,46 @@ const PomodoroTimer = () => {
       type: 'START_TIMER',
       payload: { currentTask, startTime }
     });
-    setIsActive(true);
-    setIsPaused(false);
+    setTimerState({ ...timerState, isActive: true, isPaused: false });
   };
 
   const handleResume = () => {
     chrome.runtime.sendMessage({ type: 'RESUME_TIMER' });
-    setIsActive(true);
-    setIsPaused(false);
+    setTimerState({ ...timerState, isActive: true, isPaused: false });
   };
 
   const handlePause = () => {
     chrome.runtime.sendMessage({ type: 'PAUSE_TIMER' });
-    setIsActive(false);
-    setIsPaused(true);
+    setTimerState({ ...timerState, isActive: false, isPaused: true });
   };
 
   const handleStop = () => {
     chrome.storage.local.get(['taskStartTime'], (result) => {
       const startTime = result.taskStartTime;
-      const endTime = Date.now();
-      const timeSpent = endTime - startTime;
+      const timeSpent = Date.now() - startTime;
       const hours = Math.floor(timeSpent / (1000 * 60 * 60));
       const minutes = Math.floor((timeSpent % (1000 * 60 * 60)) / (1000 * 60));
       
       const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
       chrome.runtime.sendMessage({ type: 'STOP_TIMER' });
-      setIsActive(false);
-      setIsPaused(false);
+      setTimerState({ ...timerState, isActive: false, isPaused: false });
 
       if (currentTask) {
+        let taskType = 'rest';
+        if (currentTask === dailyStrategy.keyTask) {
+          taskType = 'key';
+        } else if (currentTask === dailyStrategy.secondaryTask) {
+          taskType = 'secondary';
+        }
+
         const newTask = {
           text: currentTask,
           duration,
-          timestamp: new Date().toLocaleDateString()
+          type: taskType,
+          timestamp: new Date().toISOString()
         };
+
         const updatedTasks = [...completedTasks, newTask];
         setCompletedTasks(updatedTasks);
         chrome.storage.local.set({ completedTasks: updatedTasks });
@@ -244,7 +256,7 @@ const PomodoroTimer = () => {
       }
     });
   };
-  
+
   const calculateTotalTime = (tasks) => {
     let totalMinutes = 0;
     
@@ -267,7 +279,6 @@ const PomodoroTimer = () => {
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  // New function to get archived tasks
   const getArchivedTasks = async () => {
     return new Promise((resolve) => {
       chrome.storage.local.get(['archivedTasks'], (result) => {
@@ -276,117 +287,185 @@ const PomodoroTimer = () => {
     });
   };
 
+  const handleTaskSelect = (taskType) => {
+    if (taskType === 'key') {
+      setCurrentTask(dailyStrategy.keyTask);
+    } else if (taskType === 'secondary') {
+      setCurrentTask(dailyStrategy.secondaryTask);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="w-96 h-96 flex items-center justify-center">
+      <div className="min-w-[300px] w-full max-w-[800px] min-h-[400px] h-full max-h-[800px] flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full min-h-screen bg-white flex flex-col">
-      <header style={{backgroundColor: '#15243D'}} className="p-3">
-        <h1 className="text-white text-lg">Quarter Focus: Only today</h1>
+    <div className="min-w-[300px] w-full max-w-[800px] min-h-[400px] h-full max-h-[800px] flex flex-col bg-white">
+      <header style={{backgroundColor: '#15243D'}} className="p-2 sm:p-3 flex-shrink-0">
+        <h1 className="text-white text-base sm:text-lg">Quarter Focus: Only today</h1>
       </header>
 
-      <div className="flex-grow p-6 flex flex-col">
-        <div className="text-center mb-8 relative flex-shrink-0">
-          <div className="text-6xl font-bold mb-2 font-mono">
-            {formatTime(timeLeft)}
-            {isActive && !isPaused && (
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full">
+          <div className="text-center mb-4 sm:mb-6">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">
+              {formatTime(timerState.timeLeft)}
+            </div>
+            <div className={`text-sm font-medium ${timerState.isBreak ? 'text-green-600' : 'text-blue-600'}`}>
+              {timerState.isBreak ? 'Break Time' : 'Focus Time'}
+            </div>
+          </div>
+
+          <div className="mb-4 sm:mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+              Current Task
+            </label>
+            <div className="relative task-dropdown-container">
+              <input
+                type="text"
+                value={currentTask}
+                onChange={(e) => {
+                  setCurrentTask(e.target.value);
+                }}
+                onFocus={() => setShowTaskDropdown(true)}
+                placeholder="What are you working on?"
+                className="w-full p-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {showTaskDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+                  {dailyStrategy.keyTask && (
+                    <button
+                      onClick={() => {
+                        setCurrentTask(dailyStrategy.keyTask);
+                        setShowTaskDropdown(false);
+                      }}
+                      className="w-full p-2 text-left hover:bg-gray-100 flex items-center text-sm sm:text-base"
+                    >
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
+                      <span className="font-medium truncate">Key: {dailyStrategy.keyTask}</span>
+                    </button>
+                  )}
+                  {dailyStrategy.secondaryTask && (
+                    <button
+                      onClick={() => {
+                        setCurrentTask(dailyStrategy.secondaryTask);
+                        setShowTaskDropdown(false);
+                      }}
+                      className="w-full p-2 text-left hover:bg-gray-100 flex items-center text-sm sm:text-base"
+                    >
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
+                      <span className="font-medium truncate">Secondary: {dailyStrategy.secondaryTask}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-2 mb-4 sm:mb-6">
+            {!timerState.isActive && !timerState.isPaused ? (
               <button
-                onClick={handlePause}
-                className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-500 text-white p-2 rounded-full h-8 w-8 flex items-center justify-center"
+                onClick={handleStart}
+                disabled={!currentTask}
+                className={`px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 rounded-md flex items-center text-sm sm:text-base ${
+                  currentTask
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
-                <Pause className="w-4 h-4" />
+                <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                <span className="whitespace-nowrap">Start Timer</span>
               </button>
+            ) : timerState.isPaused ? (
+              <button
+                onClick={handleResume}
+                className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm sm:text-base"
+              >
+                <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                <span className="whitespace-nowrap">Resume</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handlePause}
+                  className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 flex items-center text-sm sm:text-base"
+                >
+                  <Pause className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                  <span className="whitespace-nowrap">Pause</span>
+                </button>
+                <button
+                  onClick={handleStop}
+                  className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center text-sm sm:text-base"
+                >
+                  <Square className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                  <span className="whitespace-nowrap">Stop</span>
+                </button>
+              </>
             )}
           </div>
-          {isActive && (
-            <div className={`text-sm font-medium ${isBreak ? 'text-green-600' : 'text-blue-600'}`}>
-              {isBreak ? 'Break Time' : 'Focus Time'}
-            </div>
-          )}
-        </div>
 
-        <div className="mb-6 flex gap-2 flex-shrink-0">
-          <input
-            type="text"
-            value={currentTask}
-            onChange={(e) => setCurrentTask(e.target.value)}
-            placeholder="Enter your task..."
-            className="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-            disabled={isActive && !isPaused}
-          />
-          {!isActive && !isPaused ? (
-            <button
-              onClick={handleStart}
-              className="bg-blue-500 text-white px-6 py-2 rounded flex items-center whitespace-nowrap"
-              disabled={!currentTask}
-            >
-              Start
-            </button>
-          ) : isPaused ? (
-            <button
-              onClick={handleResume}
-              className="bg-green-500 text-white px-6 py-2 rounded flex items-center whitespace-nowrap"
-            >
-              Start
-            </button>
-          ) : (
-            <button
-              onClick={handleStop}
-              className="bg-orange-500 text-white px-6 py-2 rounded flex items-center whitespace-nowrap"
-            >
-              stop
-            </button>
-          )}
-        </div>
-
-        <div className="flex-grow overflow-auto">
-          <h2 className="text-lg font-semibold mb-3">Tasks done today</h2>
-          <div className="space-y-2">
-            {completedTasks.map((task, index) => (
-              <div key={index} className="flex items-center text-gray-700">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                <span>{task.text} / {task.duration}</span>
-              </div>
-            ))}
-            {completedTasks.length > 0 && (
-              <>
-                <div className="pt-4 mt-4 border-t border-gray-200">
-                  <div className="flex justify-between text-gray-700">
+          <div className="flex-1 min-h-0">
+            <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3">Tasks done today</h2>
+            <div className="space-y-1.5 sm:space-y-2 overflow-y-auto max-h-full">
+              {completedTasks.map((task, index) => (
+                <div key={index} className="flex items-center text-sm sm:text-base text-gray-700">
+                  <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${
+                    task.type === 'key' ? 'bg-blue-500' : 
+                    task.type === 'secondary' ? 'bg-green-500' : 
+                    'bg-gray-500'
+                  }`}></div>
+                  <span className="truncate">{task.text}</span>
+                  <span className="ml-2 flex-shrink-0">/ {task.duration}</span>
+                </div>
+              ))}
+              {completedTasks.length === 0 && (
+                <div className="text-sm text-gray-500">No tasks completed yet</div>
+              )}
+              {completedTasks.length > 0 && (
+                <div className="pt-3 mt-3 sm:pt-4 sm:mt-4 border-t border-gray-200">
+                  <div className="flex justify-between text-sm sm:text-base text-gray-700">
                     <span>Total time today:</span>
                     <span>{calculateTotalTime(completedTasks)}</span>
                   </div>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <footer style={{backgroundColor: '#15243D'}} className="p-3 mt-auto">
+      <footer style={{backgroundColor: '#15243D'}} className="p-2 sm:p-3 flex-shrink-0">
         <nav className="flex justify-between items-center">
           <a 
             href="https://www.quarterfocus.com" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="text-white hover:text-gray-300 text-sm"
+            className="text-white hover:text-gray-300 text-sm sm:text-base"
           >
             Quarter Focus
           </a>
-          <button
-            onClick={async () => {
-              const archived = await getArchivedTasks();
-              setArchivedTasks(archived);
-              setIsArchiveModalOpen(true);
-            }}
-            className="text-white hover:text-gray-300 text-sm"
-          >
-            History
-          </button>
+          <div className="flex gap-3 sm:gap-4">
+            <button
+              onClick={() => setIsStrategyModalOpen(true)}
+              className="text-white hover:text-gray-300 text-sm sm:text-base whitespace-nowrap"
+            >
+              Strategy
+            </button>
+            <button
+              onClick={async () => {
+                const archived = await getArchivedTasks();
+                setArchivedTasks(archived);
+                setIsArchiveModalOpen(true);
+              }}
+              className="text-white hover:text-gray-300 text-sm sm:text-base whitespace-nowrap"
+            >
+              History
+            </button>
+          </div>
         </nav>
       </footer>
 
@@ -394,6 +473,11 @@ const PomodoroTimer = () => {
         isOpen={isArchiveModalOpen}
         onClose={() => setIsArchiveModalOpen(false)}
         archivedTasks={archivedTasks}
+      />
+
+      <StrategyModal
+        isOpen={isStrategyModalOpen}
+        onClose={() => setIsStrategyModalOpen(false)}
       />
     </div>
   );
