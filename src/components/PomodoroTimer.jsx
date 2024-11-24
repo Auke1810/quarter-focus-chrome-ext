@@ -13,6 +13,126 @@ const PomodoroTimer = () => {
   // New state for archive modal
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [archivedTasks, setArchivedTasks] = useState([]);
+  const [notificationSound, setNotificationSound] = useState(null);
+
+  // Initialize sound with user interaction
+  useEffect(() => {
+    const initializeSound = async () => {
+      try {
+        console.log('Initializing notification sound...');
+        const audio = new Audio(chrome.runtime.getURL('notification.wav'));
+        
+        // Set volume to maximum
+        audio.volume = 1.0;
+        
+        // Set up event listeners for debugging
+        audio.addEventListener('canplaythrough', () => {
+          console.log('Sound loaded and ready to play');
+        });
+        
+        audio.addEventListener('play', () => {
+          console.log('Sound started playing');
+        });
+        
+        audio.addEventListener('ended', () => {
+          console.log('Sound finished playing');
+        });
+        
+        audio.addEventListener('error', (e) => {
+          console.error('Error with sound:', e);
+        });
+
+        // Pre-load the audio
+        await audio.load();
+        console.log('Sound loaded successfully');
+        
+        setNotificationSound(audio);
+      } catch (error) {
+        console.error('Sound initialization failed:', error);
+      }
+    };
+
+    // Initialize sound on user interaction
+    const handleUserInteraction = () => {
+      if (!notificationSound) {
+        initializeSound();
+      }
+    };
+
+    // Try to initialize on mount
+    initializeSound();
+
+    // Also initialize on user interaction as fallback
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, []);
+
+  useEffect(() => {
+    const messageListener = async (message) => {
+      if (message.type === 'STATE_UPDATE') {
+        setTimeLeft(message.state.timeLeft);
+        setIsActive(message.state.isActive);
+        setIsPaused(message.state.isPaused);
+        setIsBreak(message.state.isBreak);
+      } else if (message.type === 'PLAY_NOTIFICATION_SOUND') {
+        console.log('Received play notification sound message');
+        
+        try {
+          if (notificationSound) {
+            console.log('Attempting to play sound...');
+            
+            // Reset the audio to start
+            notificationSound.currentTime = 0;
+            notificationSound.volume = 1.0;
+            
+            // Play the sound
+            const playPromise = notificationSound.play();
+            if (playPromise) {
+              await playPromise;
+              console.log('Sound started playing');
+            }
+          } else {
+            console.log('No notification sound initialized, trying system notification');
+            throw new Error('No notification sound available');
+          }
+        } catch (error) {
+          console.error('Failed to play sound:', error);
+          // Fallback to system notification
+          if ('Notification' in window) {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              new Notification('Quarter Focus', {
+                body: 'Timer completed!',
+                silent: false
+              });
+            }
+          }
+        }
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+    return () => chrome.runtime.onMessage.removeListener(messageListener);
+  }, [notificationSound]);
+
+  useEffect(() => {
+    const messageListener = (message) => {
+      if (message.type === 'STATE_UPDATE') {
+        setTimeLeft(message.state.timeLeft);
+        setIsActive(message.state.isActive);
+        setIsPaused(message.state.isPaused);
+        setIsBreak(message.state.isBreak);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+    return () => chrome.runtime.onMessage.removeListener(messageListener);
+  }, []);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
@@ -20,6 +140,7 @@ const PomodoroTimer = () => {
         setTimeLeft(response.timeLeft);
         setIsActive(response.isActive);
         setIsPaused(response.isPaused);
+        setIsBreak(response.isBreak);
         setCurrentTask(response.currentTask || '');
       }
       setIsLoading(false);
@@ -240,25 +361,36 @@ const PomodoroTimer = () => {
                     <span>{calculateTotalTime(completedTasks)}</span>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <button
-                    onClick={async () => {
-                      const archived = await getArchivedTasks();
-                      setArchivedTasks(archived);
-                      setIsArchiveModalOpen(true);
-                    }}
-                    className="text-sm text-blue-500 hover:text-blue-600"
-                  >
-                    View Previous Days
-                  </button>
-                </div>
               </>
             )}
           </div>
         </div>
       </div>
 
-      <TaskArchiveModal 
+      <footer style={{backgroundColor: '#15243D'}} className="p-3 mt-auto">
+        <nav className="flex justify-between items-center">
+          <a 
+            href="https://www.quarterfocus.com" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-white hover:text-gray-300 text-sm"
+          >
+            Quarter Focus
+          </a>
+          <button
+            onClick={async () => {
+              const archived = await getArchivedTasks();
+              setArchivedTasks(archived);
+              setIsArchiveModalOpen(true);
+            }}
+            className="text-white hover:text-gray-300 text-sm"
+          >
+            History
+          </button>
+        </nav>
+      </footer>
+
+      <TaskArchiveModal
         isOpen={isArchiveModalOpen}
         onClose={() => setIsArchiveModalOpen(false)}
         archivedTasks={archivedTasks}

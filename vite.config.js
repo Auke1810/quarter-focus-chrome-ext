@@ -17,13 +17,19 @@ export default defineConfig({
           fs.mkdirSync('dist/icons', { recursive: true });
         }
         
-        // Copy icons if they exist
+        // Copy icons
         ['16', '48', '128'].forEach(size => {
           const iconPath = `public/icons/icon${size}.png`;
           if (fs.existsSync(iconPath)) {
             fs.copyFileSync(iconPath, `dist/icons/icon${size}.png`);
           }
         });
+
+        // Copy notification sound
+        const notificationSound = 'public/notification.wav';
+        if (fs.existsSync(notificationSound)) {
+          fs.copyFileSync(notificationSound, 'dist/notification.wav');
+        }
       }
     }
   ],

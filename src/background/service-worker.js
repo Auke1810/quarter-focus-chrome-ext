@@ -1,6 +1,6 @@
 // Constants for timer durations
-const WORK_TIME = 25 * 60;  // 5 minutes
-const BREAK_TIME = 5 * 60; // 2 minutes
+const WORK_TIME = 25 * 60;  // 25 minutes
+const BREAK_TIME = 5 * 60; // 5 minutes
 
 let activePopup = null;
 let timerState = {
@@ -54,20 +54,40 @@ function handleTimerComplete() {
         .catch(() => { activePopup = null; });
     }
 
+    // Create notification
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: 'Quarter Focus',
-      message: timerState.isBreak ? 'Break time is over. Ready to focus!' : 'Time for a break!'
+      message: timerState.isBreak ? 'Break time is over. Ready to focus!' : 'Time for a break!',
+      silent: true // We'll handle the sound ourselves
     });
 
+    // Send message to play sound
+    chrome.runtime.sendMessage({ 
+      type: 'PLAY_NOTIFICATION_SOUND'
+    }).catch(() => {
+      console.log('No active popup to play sound');
+    });
+
+    // Update timer state
     timerState.isBreak = !timerState.isBreak;
     timerState.timeLeft = timerState.isBreak ? BREAK_TIME : WORK_TIME;
-    timerState.isActive = true;
-    timerState.isPaused = false;
-
-    if (!timerInterval) {
-      timerInterval = setInterval(handleTick, 1000);
+    
+    // Auto-start break, pause for focus time
+    if (timerState.isBreak) {
+      timerState.isActive = true;
+      timerState.isPaused = false;
+      if (!timerInterval) {
+        timerInterval = setInterval(handleTick, 1000);
+      }
+    } else {
+      timerState.isActive = false;
+      timerState.isPaused = false;
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
     }
 
     updateBadgeText();
@@ -136,11 +156,21 @@ chrome.action.onClicked.addListener(async () => {
     }
   }
 
+  // Get the screen dimensions
+  const { width: screenWidth } = await chrome.windows.getLastFocused();
+  
+  // Calculate position for center of screen
+  const width = 400;
+  const height = 600;
+  const left = Math.round((screenWidth - width) / 2);
+
   const popup = await chrome.windows.create({
     url: 'index.html',
     type: 'popup',
-    width: 400,
-    height: 600,
+    width: width,
+    height: height,
+    left: left,
+    top: 100,
     focused: true
   });
 
