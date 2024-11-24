@@ -2,6 +2,7 @@
 const WORK_TIME = 25 * 60;  // 5 minutes
 const BREAK_TIME = 5 * 60; // 2 minutes
 
+let activePopup = null;
 let timerState = {
   timeLeft: WORK_TIME,
   isActive: false,
@@ -48,20 +49,11 @@ function updateBadgeText() {
 
 function handleTimerComplete() {
   try {
-    // Find and focus existing window
-    chrome.windows.getAll({ populate: true }, (windows) => {
-      const pomodoroWindow = windows.find(window => 
-        window.type === 'popup' && 
-        window.tabs && 
-        window.tabs[0]?.url?.includes('index.html')
-      );
+    if (activePopup) {
+      chrome.windows.update(activePopup.id, { focused: true })
+        .catch(() => { activePopup = null; });
+    }
 
-      if (pomodoroWindow) {
-        chrome.windows.update(pomodoroWindow.id, { focused: true });
-      }
-    });
-
-    // Show notification
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
@@ -69,7 +61,6 @@ function handleTimerComplete() {
       message: timerState.isBreak ? 'Break time is over. Ready to focus!' : 'Time for a break!'
     });
 
-    // Toggle break/work mode
     timerState.isBreak = !timerState.isBreak;
     timerState.timeLeft = timerState.isBreak ? BREAK_TIME : WORK_TIME;
     timerState.isActive = true;
@@ -87,7 +78,6 @@ function handleTimerComplete() {
   }
 }
 
-// Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'START_TIMER':
@@ -136,13 +126,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Handle extension icon click
-chrome.action.onClicked.addListener(() => {
-  chrome.windows.create({
+chrome.action.onClicked.addListener(async () => {
+  if (activePopup) {
+    try {
+      await chrome.windows.update(activePopup.id, { focused: true });
+      return;
+    } catch (e) {
+      activePopup = null;
+    }
+  }
+
+  const popup = await chrome.windows.create({
     url: 'index.html',
     type: 'popup',
     width: 400,
     height: 600,
     focused: true
   });
+
+  activePopup = popup;
+
+  chrome.windows.onRemoved.addListener(function handleClose(windowId) {
+    if (windowId === activePopup?.id) {
+      activePopup = null;
+      chrome.windows.onRemoved.removeListener(handleClose);
+    }
+  });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  activePopup = null;
 });

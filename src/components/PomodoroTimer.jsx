@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pause } from 'lucide-react';
+import TaskArchiveModal from './TaskArchiveModal';
 
 const PomodoroTimer = () => {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -9,6 +10,9 @@ const PomodoroTimer = () => {
   const [completedTasks, setCompletedTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBreak, setIsBreak] = useState(false);
+  // New state for archive modal
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [archivedTasks, setArchivedTasks] = useState([]);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
@@ -21,13 +25,29 @@ const PomodoroTimer = () => {
       setIsLoading(false);
     });
 
-    chrome.storage.local.get(['completedTasks', 'lastUpdateDate'], (result) => {
+    chrome.storage.local.get(['completedTasks', 'lastUpdateDate', 'archivedTasks'], (result) => {
       const today = new Date().toDateString();
       if (result.lastUpdateDate !== today) {
+        // Archive yesterday's tasks before clearing
+        const archivedTasks = result.archivedTasks || [];
+        if (result.completedTasks && result.completedTasks.length > 0) {
+          archivedTasks.unshift({
+            date: result.lastUpdateDate || new Date(Date.now() - 86400000).toDateString(),
+            tasks: result.completedTasks
+          });
+          
+          // Keep only last 30 days of archives
+          if (archivedTasks.length > 30) {
+            archivedTasks.pop();
+          }
+        }
+        
         chrome.storage.local.set({ 
           completedTasks: [],
-          lastUpdateDate: today
+          lastUpdateDate: today,
+          archivedTasks: archivedTasks
         });
+        setCompletedTasks([]);
       } else if (result.completedTasks) {
         setCompletedTasks(result.completedTasks);
       }
@@ -126,6 +146,15 @@ const PomodoroTimer = () => {
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
+  // New function to get archived tasks
+  const getArchivedTasks = async () => {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['archivedTasks'], (result) => {
+        resolve(result.archivedTasks || []);
+      });
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="w-96 h-96 flex items-center justify-center">
@@ -142,7 +171,7 @@ const PomodoroTimer = () => {
 
       <div className="flex-grow p-6 flex flex-col">
         <div className="text-center mb-8 relative flex-shrink-0">
-          <div className="text-6xl font-bold mb-4 font-mono">
+          <div className="text-6xl font-bold mb-2 font-mono">
             {formatTime(timeLeft)}
             {isActive && !isPaused && (
               <button
@@ -153,6 +182,11 @@ const PomodoroTimer = () => {
               </button>
             )}
           </div>
+          {isActive && (
+            <div className={`text-sm font-medium ${isBreak ? 'text-green-600' : 'text-blue-600'}`}>
+              {isBreak ? 'Break Time' : 'Focus Time'}
+            </div>
+          )}
         </div>
 
         <div className="mb-6 flex gap-2 flex-shrink-0">
@@ -199,16 +233,36 @@ const PomodoroTimer = () => {
               </div>
             ))}
             {completedTasks.length > 0 && (
-              <div className="pt-4 mt-4 border-t border-gray-200">
-                <div className="flex justify-between text-gray-700">
-                  <span>Total time today:</span>
-                  <span>{calculateTotalTime(completedTasks)}</span>
+              <>
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                  <div className="flex justify-between text-gray-700">
+                    <span>Total time today:</span>
+                    <span>{calculateTotalTime(completedTasks)}</span>
+                  </div>
                 </div>
-              </div>
+                <div className="mt-4">
+                  <button
+                    onClick={async () => {
+                      const archived = await getArchivedTasks();
+                      setArchivedTasks(archived);
+                      setIsArchiveModalOpen(true);
+                    }}
+                    className="text-sm text-blue-500 hover:text-blue-600"
+                  >
+                    View Previous Days
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
       </div>
+
+      <TaskArchiveModal 
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        archivedTasks={archivedTasks}
+      />
     </div>
   );
 };

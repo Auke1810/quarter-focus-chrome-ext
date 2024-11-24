@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Quarter Focus",
-  "version": "1.0",
+  "version": "2.0",
   "description": "A Pomodoro timer focused on simplicity and daily task tracking",
   "background": {
     "service_worker": "background.js"
