@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Square, Clock } from 'lucide-react';
 import TaskArchiveModal from './TaskArchiveModal';
 import StrategyModal from './StrategyModal';
+import Header from './layout/Header';
+import Footer from './layout/Footer';
+import Timer from './timer/Timer';
+import TaskInput from './tasks/TaskInput';
+import CompletedTasks from './tasks/CompletedTasks';
+import DailyIntention from './strategy/DailyIntention';
 
 const PomodoroTimer = () => {
   const [timerState, setTimerState] = useState({
@@ -134,10 +139,29 @@ const PomodoroTimer = () => {
   }, [showTaskDropdown]);
 
   useEffect(() => {
+    // Save current task whenever it changes
+    chrome.storage.local.set({ currentTask });
+  }, [currentTask]);
+
+  useEffect(() => {
+    // Clear current task at the start of a new day
+    chrome.storage.local.get(['lastUpdateDate'], (result) => {
+      const today = new Date().toDateString();
+      if (result.lastUpdateDate !== today) {
+        chrome.storage.local.set({ currentTask: '' });
+        setCurrentTask('');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     // Load daily strategy on component mount
-    chrome.storage.local.get(['dailyStrategy'], (result) => {
+    chrome.storage.local.get(['dailyStrategy', 'currentTask'], (result) => {
       if (result.dailyStrategy && result.dailyStrategy.date === new Date().toLocaleDateString()) {
         setDailyStrategy(result.dailyStrategy);
+      }
+      if (result.currentTask) {
+        setCurrentTask(result.currentTask);
       }
     });
 
@@ -170,10 +194,12 @@ const PomodoroTimer = () => {
           completedTasks: [],
           lastUpdateDate: today,
           archivedTasks: archivedTasks,
-          dailyStrategy: { date: today } // Reset strategy but keep date updated
+          dailyStrategy: { date: today }, // Reset strategy but keep date updated
+          currentTask: '' // Clear current task
         });
         setCompletedTasks([]);
         setDailyStrategy({ date: today }); // Reset strategy in state
+        setCurrentTask(''); // Reset current task in state
       } else {
         // It's still the same day, load existing data
         if (result.completedTasks) {
@@ -305,176 +331,49 @@ const PomodoroTimer = () => {
 
   return (
     <div className="min-w-[300px] w-full max-w-[800px] min-h-[400px] h-full max-h-[800px] flex flex-col bg-white">
-      <header style={{backgroundColor: '#15243D'}} className="p-2 sm:p-3 flex-shrink-0">
-        <h1 className="text-white text-base sm:text-lg">Quarter Focus: Only today</h1>
-      </header>
+      <Header />
 
       <div className="flex-1 overflow-y-auto">
         <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full">
-          {dailyStrategy.dailyIntention && (
-            <div className="text-center mb-4">
-              <p className="text-sm sm:text-base text-gray-600 italic">
-                "{dailyStrategy.dailyIntention}"
-              </p>
-            </div>
-          )}
-          <div className="text-center mb-4 sm:mb-6">
-            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">
-              {formatTime(timerState.timeLeft)}
-            </div>
-            <div className={`text-sm font-medium ${timerState.isBreak ? 'text-green-600' : 'text-blue-600'}`}>
-              {timerState.isBreak ? 'Break Time' : 'Focus Time'}
-            </div>
-          </div>
+          <DailyIntention intention={dailyStrategy.dailyIntention} />
+          
+          <Timer 
+            timerState={timerState}
+            currentTask={currentTask}
+            onStart={handleStart}
+            onPause={handlePause}
+            onResume={handleResume}
+            onStop={handleStop}
+            formatTime={formatTime}
+          />
 
-          <div className="mb-4 sm:mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-              Current Task
-            </label>
-            <div className="relative task-dropdown-container">
-              <input
-                type="text"
-                value={currentTask}
-                onChange={(e) => {
-                  setCurrentTask(e.target.value);
-                }}
-                onFocus={() => setShowTaskDropdown(true)}
-                placeholder="What are you working on?"
-                className="w-full p-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {showTaskDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-[200px] overflow-y-auto">
-                  {dailyStrategy.keyTask && (
-                    <button
-                      onClick={() => {
-                        setCurrentTask(dailyStrategy.keyTask);
-                        setShowTaskDropdown(false);
-                      }}
-                      className="w-full p-2 text-left hover:bg-gray-100 flex items-center text-sm sm:text-base"
-                    >
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
-                      <span className="font-medium truncate">Key: {dailyStrategy.keyTask}</span>
-                    </button>
-                  )}
-                  {dailyStrategy.secondaryTask && (
-                    <button
-                      onClick={() => {
-                        setCurrentTask(dailyStrategy.secondaryTask);
-                        setShowTaskDropdown(false);
-                      }}
-                      className="w-full p-2 text-left hover:bg-gray-100 flex items-center text-sm sm:text-base"
-                    >
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
-                      <span className="font-medium truncate">Secondary: {dailyStrategy.secondaryTask}</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          <TaskInput 
+            currentTask={currentTask}
+            showTaskDropdown={showTaskDropdown}
+            dailyStrategy={dailyStrategy}
+            onTaskChange={setCurrentTask}
+            onTaskFocus={() => setShowTaskDropdown(true)}
+            onTaskSelect={(task) => {
+              setCurrentTask(task);
+              setShowTaskDropdown(false);
+            }}
+          />
 
-          <div className="flex flex-wrap justify-center gap-2 mb-4 sm:mb-6">
-            {!timerState.isActive && !timerState.isPaused ? (
-              <button
-                onClick={handleStart}
-                disabled={!currentTask}
-                className={`px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 rounded-md flex items-center text-sm sm:text-base ${
-                  currentTask
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                <span className="whitespace-nowrap">Start Timer</span>
-              </button>
-            ) : timerState.isPaused ? (
-              <button
-                onClick={handleResume}
-                className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm sm:text-base"
-              >
-                <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                <span className="whitespace-nowrap">Resume</span>
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={handlePause}
-                  className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 flex items-center text-sm sm:text-base"
-                >
-                  <Pause className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                  <span className="whitespace-nowrap">Pause</span>
-                </button>
-                <button
-                  onClick={handleStop}
-                  className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center text-sm sm:text-base"
-                >
-                  <Square className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                  <span className="whitespace-nowrap">Stop</span>
-                </button>
-              </>
-            )}
-          </div>
-
-          <div className="flex-1 min-h-0">
-            <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3">Tasks done today</h2>
-            <div className="space-y-1.5 sm:space-y-2 overflow-y-auto max-h-full">
-              {completedTasks.map((task, index) => (
-                <div key={index} className="flex items-center text-sm sm:text-base text-gray-700">
-                  <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${
-                    task.type === 'key' ? 'bg-blue-500' : 
-                    task.type === 'secondary' ? 'bg-green-500' : 
-                    'bg-gray-500'
-                  }`}></div>
-                  <span className="truncate">{task.text}</span>
-                  <span className="ml-2 flex-shrink-0">/ {task.duration}</span>
-                </div>
-              ))}
-              {completedTasks.length === 0 && (
-                <div className="text-sm text-gray-500">No tasks completed yet</div>
-              )}
-              {completedTasks.length > 0 && (
-                <div className="pt-3 mt-3 sm:pt-4 sm:mt-4 border-t border-gray-200">
-                  <div className="flex justify-between text-sm sm:text-base text-gray-700">
-                    <span>Total time today:</span>
-                    <span>{calculateTotalTime(completedTasks)}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <CompletedTasks 
+            completedTasks={completedTasks}
+            calculateTotalTime={calculateTotalTime}
+          />
         </div>
       </div>
 
-      <footer style={{backgroundColor: '#15243D'}} className="p-2 sm:p-3 flex-shrink-0">
-        <nav className="flex justify-between items-center">
-          <a 
-            href="https://www.quarterfocus.com" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="text-white hover:text-gray-300 text-sm sm:text-base"
-          >
-            Quarter Focus
-          </a>
-          <div className="flex gap-3 sm:gap-4">
-            <button
-              onClick={() => setIsStrategyModalOpen(true)}
-              className="text-white hover:text-gray-300 text-sm sm:text-base whitespace-nowrap"
-            >
-              Strategy
-            </button>
-            <button
-              onClick={async () => {
-                const archived = await getArchivedTasks();
-                setArchivedTasks(archived);
-                setIsArchiveModalOpen(true);
-              }}
-              className="text-white hover:text-gray-300 text-sm sm:text-base whitespace-nowrap"
-            >
-              History
-            </button>
-          </div>
-        </nav>
-      </footer>
+      <Footer 
+        onStrategyClick={() => setIsStrategyModalOpen(true)}
+        onHistoryClick={async () => {
+          const archived = await getArchivedTasks();
+          setArchivedTasks(archived);
+          setIsArchiveModalOpen(true);
+        }}
+      />
 
       <TaskArchiveModal
         isOpen={isArchiveModalOpen}
@@ -487,8 +386,6 @@ const PomodoroTimer = () => {
         onClose={() => setIsStrategyModalOpen(false)}
         onSave={(strategy) => {
           setDailyStrategy(strategy);
-          // If there's a key or secondary task and no current task selected,
-          // set the current task to one of them
           if (!currentTask && (strategy.keyTask || strategy.secondaryTask)) {
             setCurrentTask(strategy.keyTask || strategy.secondaryTask);
           }
