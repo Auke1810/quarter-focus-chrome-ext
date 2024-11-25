@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-const StrategyModal = ({ isOpen, onClose }) => {
+const StrategyModal = ({ isOpen, onClose, onSave }) => {
   const [keyTask, setKeyTask] = useState('');
   const [secondaryTask, setSecondaryTask] = useState('');
+  const [dailyIntention, setDailyIntention] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -12,6 +13,7 @@ const StrategyModal = ({ isOpen, onClose }) => {
         if (result.dailyStrategy) {
           setKeyTask(result.dailyStrategy.keyTask || '');
           setSecondaryTask(result.dailyStrategy.secondaryTask || '');
+          setDailyIntention(result.dailyStrategy.dailyIntention || '');
         }
       });
     }
@@ -21,10 +23,14 @@ const StrategyModal = ({ isOpen, onClose }) => {
     const strategy = {
       keyTask,
       secondaryTask,
+      dailyIntention,
       date: new Date().toLocaleDateString()
     };
 
     chrome.storage.local.set({ dailyStrategy: strategy }, () => {
+      if (onSave) {
+        onSave(strategy);
+      }
       onClose();
     });
   };
@@ -45,6 +51,20 @@ const StrategyModal = ({ isOpen, onClose }) => {
         </div>
 
         <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Daily Intention
+            </label>
+            <input
+              type="text"
+              value={dailyIntention}
+              onChange={(e) => setDailyIntention(e.target.value)}
+              placeholder="What's your intention for today?"
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="mt-1 text-sm text-gray-500">Set your mindset or intention for the day</p>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Key Focus Task

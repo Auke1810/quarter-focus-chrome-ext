@@ -14,7 +14,7 @@ const PomodoroTimer = () => {
   const [currentTask, setCurrentTask] = useState('');
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
-  const [dailyStrategy, setDailyStrategy] = useState({ keyTask: '', secondaryTask: '' });
+  const [dailyStrategy, setDailyStrategy] = useState({ keyTask: '', secondaryTask: '', dailyIntention: '' });
   const [archivedTasks, setArchivedTasks] = useState([]);
   const [notificationSound, setNotificationSound] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -311,6 +311,13 @@ const PomodoroTimer = () => {
 
       <div className="flex-1 overflow-y-auto">
         <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full">
+          {dailyStrategy.dailyIntention && (
+            <div className="text-center mb-4">
+              <p className="text-sm sm:text-base text-gray-600 italic">
+                "{dailyStrategy.dailyIntention}"
+              </p>
+            </div>
+          )}
           <div className="text-center mb-4 sm:mb-6">
             <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">
               {formatTime(timerState.timeLeft)}
@@ -475,9 +482,17 @@ const PomodoroTimer = () => {
         archivedTasks={archivedTasks}
       />
 
-      <StrategyModal
-        isOpen={isStrategyModalOpen}
+      <StrategyModal 
+        isOpen={isStrategyModalOpen} 
         onClose={() => setIsStrategyModalOpen(false)}
+        onSave={(strategy) => {
+          setDailyStrategy(strategy);
+          // If there's a key or secondary task and no current task selected,
+          // set the current task to one of them
+          if (!currentTask && (strategy.keyTask || strategy.secondaryTask)) {
+            setCurrentTask(strategy.keyTask || strategy.secondaryTask);
+          }
+        }}
       />
     </div>
   );
