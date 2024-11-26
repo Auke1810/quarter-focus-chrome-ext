@@ -72,6 +72,7 @@ quarter-focus-chrome-ext/
 └── [config files]              # Vite, TailwindCSS, and extension configs
 
 ## Roadmap
-- [ ] Statistics/analytics
 - [ ] Settings panel
+- [ ] Statistics/analytics
+- [ ] Show Google Calendar events
 - [ ] Data export
