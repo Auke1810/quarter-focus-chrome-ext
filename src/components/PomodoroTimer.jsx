@@ -286,7 +286,12 @@ const PomodoroTimer = () => {
   const handleStart = () => {
     if (currentTask.trim() === '') return;
     const startTime = Date.now();
-    chrome.storage.local.set({ taskStartTime: startTime });
+    chrome.storage.local.get(['taskTotalTime'], (result) => {
+      chrome.storage.local.set({ 
+        taskStartTime: startTime,
+        taskTotalTime: result.taskTotalTime || 0 // Initialize if not exists
+      });
+    });
     chrome.runtime.sendMessage({
       type: 'START_TIMER',
       payload: { currentTask, startTime }
@@ -295,6 +300,8 @@ const PomodoroTimer = () => {
   };
 
   const handleResume = () => {
+    const startTime = Date.now();
+    chrome.storage.local.set({ taskStartTime: startTime });
     chrome.runtime.sendMessage({ type: 'RESUME_TIMER' });
     setTimerState({ ...timerState, isActive: true, isPaused: false });
   };
@@ -305,11 +312,13 @@ const PomodoroTimer = () => {
   };
 
   const handleStop = () => {
-    chrome.storage.local.get(['taskStartTime', 'completedPomodoros'], (result) => {
+    chrome.storage.local.get(['taskStartTime', 'taskTotalTime', 'completedPomodoros'], (result) => {
       const startTime = result.taskStartTime;
-      const timeSpent = Date.now() - startTime;
-      const hours = Math.floor(timeSpent / (1000 * 60 * 60));
-      const minutes = Math.floor((timeSpent % (1000 * 60 * 60)) / (1000 * 60));
+      const currentSessionTime = Date.now() - startTime;
+      const totalTimeSpent = (result.taskTotalTime || 0) + currentSessionTime;
+      
+      const hours = Math.floor(totalTimeSpent / (1000 * 60 * 60));
+      const minutes = Math.floor((totalTimeSpent % (1000 * 60 * 60)) / (1000 * 60));
       
       const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
@@ -339,7 +348,8 @@ const PomodoroTimer = () => {
         setCompletedTasks(updatedTasks);
         chrome.storage.local.set({ 
           completedTasks: updatedTasks,
-          completedPomodoros: 0 // Reset for next task
+          completedPomodoros: 0, // Reset for next task
+          taskTotalTime: 0 // Reset total time for next task
         });
         setCurrentTask('');
       }

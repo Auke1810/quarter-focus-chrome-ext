@@ -71,8 +71,25 @@ quarter-focus-chrome-ext/
 │   └── icons/                  # Extension icons
 └── [config files]              # Vite, TailwindCSS, and extension configs
 
-## Roadmap
+### Roadmap
+- [x] Pomodoro timer
+- [x] Task management
+- [x] Strategy planning
+- [x] Task archive
+- [x] Timer completion sound
+- [x] Break-end reminder sound
+- [x] Browser integration
+- [x] Task duration tracking
+- [x] Visual indicators for tasks exceeding planned time
+- [x] Being able to stop the timer when break has ended
+- [ ] Save task after first pomodoro completion and update after each pomodoro.
+- [ ] If the timer runs, display a countdonw timer in an overlay.
+- [ ] Version 3.
+- [ ] Add tasks to timer with details and planed pomodoros
+- [ ] Show list of task and start pomodoro from task.
 - [ ] Settings panel
 - [ ] Statistics/analytics
 - [ ] Show Google Calendar events
+- [ ] Version 4.
+- [ ] Add Accountability AI coach
 - [ ] Data export

@@ -12,6 +12,138 @@ let timerState = {
 };
 
 let timerInterval = null;
+let isCreatingWindow = false;
+
+// Helper function to find existing timer window
+async function findExistingTimerWindow() {
+  try {
+    console.log('Searching for existing timer window...');
+    const windows = await chrome.windows.getAll({ populate: true });
+    console.log('Found windows:', windows.length);
+    
+    // First try to use activePopup if it exists
+    if (activePopup) {
+      try {
+        const window = await chrome.windows.get(activePopup.id);
+        if (window) {
+          console.log('Found active popup window:', window.id);
+          return window;
+        }
+      } catch (e) {
+        console.log('Active popup window no longer exists');
+        activePopup = null;
+      }
+    }
+
+    // Search through all windows
+    for (const window of windows) {
+      const url = window.tabs?.[0]?.url;
+      console.log('Checking window:', window.id, 'URL:', url);
+      
+      // Check if this is our extension window
+      if (window.type === 'popup' && url) {
+        const isExtensionUrl = url.includes('chrome-extension://') && url.endsWith('/index.html');
+        const isDevUrl = url.includes('quarter-focus-chrome-ext') && url.endsWith('/index.html');
+        
+        if (isExtensionUrl || isDevUrl) {
+          console.log('Found timer window:', window.id);
+          activePopup = window; // Update activePopup reference
+          return window;
+        }
+      }
+    }
+    
+    console.log('No existing timer window found');
+    return null;
+  } catch (error) {
+    console.error('Error finding existing timer window:', error);
+    return null;
+  }
+}
+
+// Helper function to focus existing window
+async function focusExistingWindow(windowId) {
+  try {
+    console.log('Focusing window:', windowId);
+    await chrome.windows.update(windowId, { 
+      focused: true,
+      drawAttention: true
+    });
+    return true;
+  } catch (error) {
+    console.error('Error focusing window:', error);
+    activePopup = null; // Reset activePopup if focus fails
+    return false;
+  }
+}
+
+// Helper function to create timer window
+async function createTimerWindow() {
+  console.log('Creating timer window...');
+  
+  if (isCreatingWindow) {
+    console.log('Window creation already in progress');
+    return null;
+  }
+
+  try {
+    isCreatingWindow = true;
+
+    // Double-check for existing windows
+    const existingWindow = await findExistingTimerWindow();
+    if (existingWindow) {
+      console.log('Found existing window, focusing:', existingWindow.id);
+      await focusExistingWindow(existingWindow.id);
+      return existingWindow;
+    }
+
+    // Get the screen dimensions
+    const { width: screenWidth } = await chrome.windows.getLastFocused();
+    
+    const width = 400;
+    const height = 600;
+    const left = Math.round((screenWidth - width) / 2);
+
+    console.log('Creating new window...');
+    const popup = await chrome.windows.create({
+      url: 'index.html',
+      type: 'popup',
+      width: width,
+      height: height,
+      left: left,
+      top: 100,
+      focused: true
+    });
+
+    // Verify the window was created successfully
+    const createdWindow = await chrome.windows.get(popup.id);
+    if (!createdWindow) {
+      throw new Error('Window creation verification failed');
+    }
+
+    console.log('New window created:', popup.id);
+    activePopup = popup;
+
+    // Add listener for window close
+    const handleClose = (windowId) => {
+      if (windowId === activePopup?.id) {
+        console.log('Timer window closed:', windowId);
+        activePopup = null;
+        chrome.windows.onRemoved.removeListener(handleClose);
+      }
+    };
+
+    chrome.windows.onRemoved.addListener(handleClose);
+
+    return popup;
+  } catch (error) {
+    console.error('Error creating timer window:', error);
+    activePopup = null;
+    return null;
+  } finally {
+    isCreatingWindow = false;
+  }
+}
 
 function handleTick() {
   if (timerState.isActive && !timerState.isPaused && timerState.timeLeft > 0) {
@@ -26,14 +158,12 @@ function handleTick() {
 }
 
 function broadcastState() {
-  try {
-    chrome.runtime.sendMessage({
-      type: 'STATE_UPDATE',
-      state: timerState
-    }).catch(() => {});
-  } catch {
+  chrome.runtime.sendMessage({
+    type: 'STATE_UPDATE',
+    state: timerState
+  }).catch(() => {
     // Ignore errors when popup is closed
-  }
+  });
 }
 
 function updateBadgeText() {
@@ -47,11 +177,11 @@ function updateBadgeText() {
   });
 }
 
-function handleTimerComplete() {
+async function handleTimerComplete() {
   try {
-    if (activePopup) {
-      chrome.windows.update(activePopup.id, { focused: true })
-        .catch(() => { activePopup = null; });
+    const existingWindow = await findExistingTimerWindow();
+    if (existingWindow) {
+      await focusExistingWindow(existingWindow.id);
     }
 
     // Create notification
@@ -60,7 +190,7 @@ function handleTimerComplete() {
       iconUrl: 'icons/icon128.png',
       title: 'Quarter Focus',
       message: timerState.isBreak ? 'Break time is over. Ready to focus!' : 'Time for a break!',
-      silent: true // We'll handle the sound ourselves
+      silent: true
     });
 
     // Send message to play sound
@@ -106,6 +236,7 @@ function handleTimerComplete() {
   }
 }
 
+// Message handlers
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CLEAR_STORAGE') {
     chrome.storage.local.clear(() => {
@@ -119,7 +250,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
       });
     });
-    return true; // Required for async sendResponse
+    return true;
   }
 
   switch (message.type) {
@@ -169,44 +300,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Handle extension icon click
 chrome.action.onClicked.addListener(async () => {
-  if (activePopup) {
-    try {
-      await chrome.windows.update(activePopup.id, { focused: true });
-      return;
-    } catch (e) {
-      activePopup = null;
-    }
-  }
-
-  // Get the screen dimensions
-  const { width: screenWidth } = await chrome.windows.getLastFocused();
-  
-  // Calculate position for center of screen
-  const width = 400;
-  const height = 600;
-  const left = Math.round((screenWidth - width) / 2);
-
-  const popup = await chrome.windows.create({
-    url: 'index.html',
-    type: 'popup',
-    width: width,
-    height: height,
-    left: left,
-    top: 100,
-    focused: true
-  });
-
-  activePopup = popup;
-
-  chrome.windows.onRemoved.addListener(function handleClose(windowId) {
-    if (windowId === activePopup?.id) {
-      activePopup = null;
-      chrome.windows.onRemoved.removeListener(handleClose);
-    }
-  });
+  await createTimerWindow();
 });
 
+// Reset state when extension starts
 chrome.runtime.onStartup.addListener(() => {
   activePopup = null;
+  isCreatingWindow = false;
 });
