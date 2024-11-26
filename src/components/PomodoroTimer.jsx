@@ -22,41 +22,52 @@ const PomodoroTimer = () => {
   const [dailyStrategy, setDailyStrategy] = useState({ keyTask: '', secondaryTask: '', dailyIntention: '' });
   const [archivedTasks, setArchivedTasks] = useState([]);
   const [notificationSound, setNotificationSound] = useState(null);
+  const [completeSound, setCompleteSound] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showTaskDropdown, setShowTaskDropdown] = useState(false);
+  const [breakEndTime, setBreakEndTime] = useState(null);
+  const [reminderTimeout, setReminderTimeout] = useState(null);
 
   useEffect(() => {
     // Initialize sound with user interaction
     const initializeSound = async () => {
       try {
-        console.log('Initializing notification sound...');
-        const audio = new Audio(chrome.runtime.getURL('notification.wav'));
+        console.log('Initializing notification sounds...');
+        const notification = new Audio(chrome.runtime.getURL('notification.wav'));
+        const complete = new Audio(chrome.runtime.getURL('complete.wav'));
         
         // Set volume to maximum
-        audio.volume = 1.0;
+        notification.volume = 1.0;
+        complete.volume = 1.0;
         
         // Set up event listeners for debugging
-        audio.addEventListener('canplaythrough', () => {
-          console.log('Sound loaded and ready to play');
-        });
-        
-        audio.addEventListener('play', () => {
-          console.log('Sound started playing');
-        });
-        
-        audio.addEventListener('ended', () => {
-          console.log('Sound finished playing');
-        });
-        
-        audio.addEventListener('error', (e) => {
-          console.error('Error with sound:', e);
-        });
+        const setupAudioListeners = (audio, name) => {
+          audio.addEventListener('canplaythrough', () => {
+            console.log(`${name} sound loaded and ready to play`);
+          });
+          
+          audio.addEventListener('play', () => {
+            console.log(`${name} sound started playing`);
+          });
+          
+          audio.addEventListener('ended', () => {
+            console.log(`${name} sound finished playing`);
+          });
+          
+          audio.addEventListener('error', (e) => {
+            console.error(`Error with ${name} sound:`, e);
+          });
+        };
 
-        // Pre-load the audio
-        await audio.load();
-        console.log('Sound loaded successfully');
+        setupAudioListeners(notification, 'Notification');
+        setupAudioListeners(complete, 'Complete');
+
+        // Pre-load both audio files
+        await Promise.all([notification.load(), complete.load()]);
+        console.log('Sounds loaded successfully');
         
-        setNotificationSound(audio);
+        setNotificationSound(notification);
+        setCompleteSound(complete);
       } catch (error) {
         console.error('Sound initialization failed:', error);
       }
@@ -64,7 +75,7 @@ const PomodoroTimer = () => {
 
     // Initialize sound on user interaction
     const handleUserInteraction = () => {
-      if (!notificationSound) {
+      if (!notificationSound || !completeSound) {
         initializeSound();
       }
     };
@@ -79,37 +90,70 @@ const PomodoroTimer = () => {
     return () => {
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
+      if (reminderTimeout) {
+        clearTimeout(reminderTimeout);
+      }
     };
+  }, []);
+
+  useEffect(() => {
+    // Force clear storage and reset on component mount
+    const resetStorage = async () => {
+      try {
+        await new Promise((resolve) => {
+          chrome.runtime.sendMessage({ type: 'CLEAR_STORAGE' }, (response) => {
+            if (response && response.success) {
+              setCompletedTasks([]);
+              setCurrentTask('');
+              resolve();
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Error resetting storage:', error);
+      }
+    };
+
+    resetStorage();
   }, []);
 
   useEffect(() => {
     const messageListener = async (message) => {
       if (message.type === 'STATE_UPDATE') {
         setTimerState(message.state);
+        // If transitioning from break to work and timer is not active
+        if (!message.state.isBreak && !message.state.isActive) {
+          const endTime = Date.now();
+          setBreakEndTime(endTime);
+          // Set a timeout for 2 minutes
+          const timeout = setTimeout(async () => {
+            try {
+              // If timer is still not active after 2 minutes
+              if (!timerState.isActive && completeSound) {
+                console.log('Playing reminder sound...');
+                completeSound.currentTime = 0;
+                await completeSound.play();
+              }
+            } catch (error) {
+              console.error('Failed to play reminder sound:', error);
+            }
+          }, 2 * 60 * 1000); // 2 minutes
+          setReminderTimeout(timeout);
+        }
       } else if (message.type === 'PLAY_NOTIFICATION_SOUND') {
         console.log('Received play notification sound message');
         
         try {
           if (notificationSound) {
             console.log('Attempting to play sound...');
-            
-            // Reset the audio to start
             notificationSound.currentTime = 0;
-            notificationSound.volume = 1.0;
-            
-            // Play the sound
-            const playPromise = notificationSound.play();
-            if (playPromise) {
-              await playPromise;
-              console.log('Sound started playing');
-            }
+            await notificationSound.play();
           } else {
             console.log('No notification sound initialized, trying system notification');
             throw new Error('No notification sound available');
           }
         } catch (error) {
           console.error('Failed to play sound:', error);
-          // Fallback to system notification
           if ('Notification' in window) {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
@@ -125,7 +169,7 @@ const PomodoroTimer = () => {
 
     chrome.runtime.onMessage.addListener(messageListener);
     return () => chrome.runtime.onMessage.removeListener(messageListener);
-  }, [notificationSound]);
+  }, [notificationSound, completeSound, timerState.isActive]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -144,14 +188,58 @@ const PomodoroTimer = () => {
   }, [currentTask]);
 
   useEffect(() => {
-    // Clear current task at the start of a new day
-    chrome.storage.local.get(['lastUpdateDate'], (result) => {
-      const today = new Date().toDateString();
-      if (result.lastUpdateDate !== today) {
-        chrome.storage.local.set({ currentTask: '' });
-        setCurrentTask('');
+    // Load saved data and check if it's a new day
+    const loadSavedData = async () => {
+      try {
+        const result = await new Promise(resolve => {
+          chrome.storage.local.get(['completedTasks', 'lastUpdateDate'], resolve);
+        });
+
+        const today = new Date().toDateString();
+        const lastUpdateDate = result.lastUpdateDate;
+
+        if (lastUpdateDate !== today) {
+          // It's a new day, archive yesterday's tasks if there are any
+          if (result.completedTasks && result.completedTasks.length > 0) {
+            const archivedTasks = await getArchivedTasks();
+            const newArchiveEntry = {
+              date: lastUpdateDate || 'Previous Day',
+              tasks: result.completedTasks
+            };
+            const updatedArchive = [newArchiveEntry, ...archivedTasks];
+            
+            // Save the archived tasks and reset completed tasks
+            await new Promise(resolve => {
+              chrome.storage.local.set({
+                archivedTasks: updatedArchive,
+                completedTasks: [],
+                lastUpdateDate: today,
+                completedPomodoros: 0
+              }, resolve);
+            });
+          } else {
+            // Just update the date if there were no tasks
+            await new Promise(resolve => {
+              chrome.storage.local.set({
+                lastUpdateDate: today,
+                completedTasks: [],
+                completedPomodoros: 0
+              }, resolve);
+            });
+          }
+          setCompletedTasks([]);
+        } else {
+          // Same day, just load the tasks
+          setCompletedTasks(result.completedTasks || []);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading saved data:', error);
+        setIsLoading(false);
       }
-    });
+    };
+
+    loadSavedData();
   }, []);
 
   useEffect(() => {
@@ -169,46 +257,6 @@ const PomodoroTimer = () => {
       if (response) {
         setTimerState(response);
       }
-      setIsLoading(false);
-    });
-
-    chrome.storage.local.get(['completedTasks', 'lastUpdateDate', 'archivedTasks', 'dailyStrategy'], (result) => {
-      const today = new Date().toDateString();
-      if (result.lastUpdateDate !== today) {
-        // Archive yesterday's tasks before clearing
-        const archivedTasks = result.archivedTasks || [];
-        if (result.completedTasks && result.completedTasks.length > 0) {
-          archivedTasks.unshift({
-            date: result.lastUpdateDate || new Date(Date.now() - 86400000).toDateString(),
-            tasks: result.completedTasks
-          });
-          
-          // Keep only last 30 days of archives
-          if (archivedTasks.length > 30) {
-            archivedTasks.pop();
-          }
-        }
-        
-        // Clear both completed tasks and daily strategy for the new day
-        chrome.storage.local.set({ 
-          completedTasks: [],
-          lastUpdateDate: today,
-          archivedTasks: archivedTasks,
-          dailyStrategy: { date: today }, // Reset strategy but keep date updated
-          currentTask: '' // Clear current task
-        });
-        setCompletedTasks([]);
-        setDailyStrategy({ date: today }); // Reset strategy in state
-        setCurrentTask(''); // Reset current task in state
-      } else {
-        // It's still the same day, load existing data
-        if (result.completedTasks) {
-          setCompletedTasks(result.completedTasks);
-        }
-        if (result.dailyStrategy) {
-          setDailyStrategy(result.dailyStrategy);
-        }
-      }
     });
 
     const listener = (message) => {
@@ -220,6 +268,14 @@ const PomodoroTimer = () => {
     chrome.runtime.onMessage.addListener(listener);
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
+
+  // Helper function to get archived tasks
+  const getArchivedTasks = async () => {
+    const result = await new Promise(resolve => {
+      chrome.storage.local.get(['archivedTasks'], resolve);
+    });
+    return result.archivedTasks || [];
+  };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -249,7 +305,7 @@ const PomodoroTimer = () => {
   };
 
   const handleStop = () => {
-    chrome.storage.local.get(['taskStartTime'], (result) => {
+    chrome.storage.local.get(['taskStartTime', 'completedPomodoros'], (result) => {
       const startTime = result.taskStartTime;
       const timeSpent = Date.now() - startTime;
       const hours = Math.floor(timeSpent / (1000 * 60 * 60));
@@ -268,16 +324,23 @@ const PomodoroTimer = () => {
           taskType = 'secondary';
         }
 
+        // Get the number of completed Pomodoros for this task
+        const completedPomodoros = !timerState.isBreak ? (result.completedPomodoros || 0) + 1 : (result.completedPomodoros || 0);
+        
         const newTask = {
           text: currentTask,
           duration,
           type: taskType,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          completedPomodoros
         };
 
         const updatedTasks = [...completedTasks, newTask];
         setCompletedTasks(updatedTasks);
-        chrome.storage.local.set({ completedTasks: updatedTasks });
+        chrome.storage.local.set({ 
+          completedTasks: updatedTasks,
+          completedPomodoros: 0 // Reset for next task
+        });
         setCurrentTask('');
       }
     });
@@ -303,14 +366,6 @@ const PomodoroTimer = () => {
     const minutes = totalMinutes % 60;
     
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-  };
-
-  const getArchivedTasks = async () => {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['archivedTasks'], (result) => {
-        resolve(result.archivedTasks || []);
-      });
-    });
   };
 
   const handleTaskSelect = (taskType) => {

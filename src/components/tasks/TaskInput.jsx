@@ -27,19 +27,31 @@ const TaskInput = ({
             {dailyStrategy.keyTask && (
               <button
                 onClick={() => onTaskSelect(dailyStrategy.keyTask)}
-                className="w-full p-2 text-left hover:bg-gray-100 flex items-center text-sm sm:text-base"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm ${
+                  currentTask === dailyStrategy.keyTask ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                }`}
               >
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
                 <span className="font-medium truncate">Key: {dailyStrategy.keyTask}</span>
+                {dailyStrategy.keyTaskPomodoros && (
+                  <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+                    {dailyStrategy.keyTaskPomodoros} 🍅
+                  </span>
+                )}
               </button>
             )}
             {dailyStrategy.secondaryTask && (
               <button
                 onClick={() => onTaskSelect(dailyStrategy.secondaryTask)}
-                className="w-full p-2 text-left hover:bg-gray-100 flex items-center text-sm sm:text-base"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm ${
+                  currentTask === dailyStrategy.secondaryTask ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                }`}
               >
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
                 <span className="font-medium truncate">Secondary: {dailyStrategy.secondaryTask}</span>
+                {dailyStrategy.secondaryTaskPomodoros && (
+                  <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+                    {dailyStrategy.secondaryTaskPomodoros} 🍅
+                  </span>
+                )}
               </button>
             )}
           </div>

@@ -2,18 +2,25 @@
 
 A Pomodoro timer extension focused on simplicity and daily task tracking.
 
-![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)
 
 ## Features
 - 25/5 minute work/break intervals (Pomodoro technique)
 - Daily task tracking with completion timestamps
 - Strategy planning modal
-- Key Focus and Secondary Focus task setting
-- Daily intention setting
+  - Key Focus and Secondary Focus task setting
+  - Planned Pomodoro count per task (with time estimation)
+  - Visual feedback for overrun tasks (red highlighting)
+  - Daily intention setting
 - Task archive functionality
 - Sound notifications
+  - Timer completion sound
+  - Break-end reminder sound
 - Browser integration with focus reminders
 - Task duration tracking
+  - Actual vs planned Pomodoro comparison
+  - Total time spent per task
+  - Visual indicators for tasks exceeding planned time
 
 ### Tech Stack
 - React 18
@@ -63,10 +70,8 @@ quarter-focus-chrome-ext/
 │   ├── notification.wav        # Timer completion sound
 │   └── icons/                  # Extension icons
 └── [config files]              # Vite, TailwindCSS, and extension configs
-```
 
 ## Roadmap
-- [ ] Task categories/tags
 - [ ] Statistics/analytics
 - [ ] Settings panel
 - [ ] Data export

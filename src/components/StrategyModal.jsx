@@ -3,7 +3,9 @@ import { X } from 'lucide-react';
 
 const StrategyModal = ({ isOpen, onClose, onSave }) => {
   const [keyTask, setKeyTask] = useState('');
+  const [keyTaskPomodoros, setKeyTaskPomodoros] = useState(1);
   const [secondaryTask, setSecondaryTask] = useState('');
+  const [secondaryTaskPomodoros, setSecondaryTaskPomodoros] = useState(1);
   const [dailyIntention, setDailyIntention] = useState('');
 
   useEffect(() => {
@@ -12,7 +14,9 @@ const StrategyModal = ({ isOpen, onClose, onSave }) => {
       chrome.storage.local.get(['dailyStrategy'], (result) => {
         if (result.dailyStrategy) {
           setKeyTask(result.dailyStrategy.keyTask || '');
+          setKeyTaskPomodoros(result.dailyStrategy.keyTaskPomodoros || 1);
           setSecondaryTask(result.dailyStrategy.secondaryTask || '');
+          setSecondaryTaskPomodoros(result.dailyStrategy.secondaryTaskPomodoros || 1);
           setDailyIntention(result.dailyStrategy.dailyIntention || '');
         }
       });
@@ -22,7 +26,9 @@ const StrategyModal = ({ isOpen, onClose, onSave }) => {
   const handleSave = () => {
     const strategy = {
       keyTask,
+      keyTaskPomodoros: parseInt(keyTaskPomodoros) || 1,
       secondaryTask,
+      secondaryTaskPomodoros: parseInt(secondaryTaskPomodoros) || 1,
       dailyIntention,
       date: new Date().toLocaleDateString()
     };
@@ -69,26 +75,54 @@ const StrategyModal = ({ isOpen, onClose, onSave }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Key Focus Task
             </label>
-            <input
-              type="text"
-              value={keyTask}
-              onChange={(e) => setKeyTask(e.target.value)}
-              placeholder="What's your main focus for today?"
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={keyTask}
+                onChange={(e) => setKeyTask(e.target.value)}
+                placeholder="What's your main focus for today?"
+                className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex-shrink-0 w-32">
+                <label className="block text-xs text-gray-500 mb-1">Pomodoros</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={keyTaskPomodoros}
+                  onChange={(e) => setKeyTaskPomodoros(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">Planned duration: {keyTaskPomodoros * 25} minutes ({(keyTaskPomodoros * 25 / 60).toFixed(1)} hours)</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Secondary Focus Task
             </label>
-            <input
-              type="text"
-              value={secondaryTask}
-              onChange={(e) => setSecondaryTask(e.target.value)}
-              placeholder="What's your secondary focus?"
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={secondaryTask}
+                onChange={(e) => setSecondaryTask(e.target.value)}
+                placeholder="What's your secondary focus?"
+                className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex-shrink-0 w-32">
+                <label className="block text-xs text-gray-500 mb-1">Pomodoros</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={secondaryTaskPomodoros}
+                  onChange={(e) => setSecondaryTaskPomodoros(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">Planned duration: {secondaryTaskPomodoros * 25} minutes ({(secondaryTaskPomodoros * 25 / 60).toFixed(1)} hours)</p>
           </div>
 
           <div className="flex justify-end pt-4">

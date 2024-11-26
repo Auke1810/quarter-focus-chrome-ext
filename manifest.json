@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Quarter Focus",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "A Pomodoro timer Chrome extension focused on simplicity and daily task tracking",
   "background": {
     "service_worker": "background.js"
@@ -19,7 +19,7 @@
     "notifications"
   ],
   "web_accessible_resources": [{
-    "resources": ["notification.wav"],
+    "resources": ["notification.wav", "complete.wav"],
     "matches": ["<all_urls>"]
   }],
   "icons": {

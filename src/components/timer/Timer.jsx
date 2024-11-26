@@ -12,7 +12,7 @@ const Timer = ({
 }) => {
   return (
     <div className="text-center mb-4 sm:mb-6">
-      <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">
+      <div className="text-[2.5em] font-bold text-gray-800 mb-1 sm:mb-2">
         {formatTime(timerState.timeLeft)}
       </div>
       <div className={`text-sm font-medium ${timerState.isBreak ? 'text-green-600' : 'text-blue-600'}`}>

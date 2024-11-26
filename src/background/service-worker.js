@@ -70,6 +70,14 @@ function handleTimerComplete() {
       console.log('No active popup to play sound');
     });
 
+    // If completing a work session, increment the Pomodoro count
+    if (!timerState.isBreak) {
+      chrome.storage.local.get(['completedPomodoros'], (result) => {
+        const currentCount = result.completedPomodoros || 0;
+        chrome.storage.local.set({ completedPomodoros: currentCount + 1 });
+      });
+    }
+
     // Update timer state
     timerState.isBreak = !timerState.isBreak;
     timerState.timeLeft = timerState.isBreak ? BREAK_TIME : WORK_TIME;
@@ -99,6 +107,21 @@ function handleTimerComplete() {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'CLEAR_STORAGE') {
+    chrome.storage.local.clear(() => {
+      const today = new Date().toDateString();
+      chrome.storage.local.set({
+        lastUpdateDate: today,
+        completedTasks: [],
+        completedPomodoros: 0,
+        archivedTasks: []
+      }, () => {
+        sendResponse({ success: true });
+      });
+    });
+    return true; // Required for async sendResponse
+  }
+
   switch (message.type) {
     case 'START_TIMER':
       timerState.currentTask = message.payload.currentTask;
