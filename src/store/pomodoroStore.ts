@@ -86,19 +86,20 @@ const usePomodoroStore = create<PomodoroStore>()(
         set(state => ({
           tasks: state.tasks.filter(task => task.id !== taskId)
         })),
-      completeTask: (taskId: string) => {
-        const state = get();
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-          const completedTask = { ...task, completedAt: new Date().toISOString() };
-          set({
-            tasks: state.tasks.filter(t => t.id !== taskId),
-            completedTasks: [...state.completedTasks, completedTask],
-            selectedTask: null
-          });
-        }
+      completeTask: (taskText: string) => {
+        const completedTask = {
+          id: Date.now().toString(),
+          text: taskText,
+          duration: '25 mins',
+          completedAt: new Date().toISOString()
+        };
+        
+        set(state => ({
+          completedTasks: [...state.completedTasks, completedTask],
+          selectedTask: null
+        }));
       },
-      setSelectedTask: (taskId: string | null) => set({ selectedTask: taskId }),
+      setSelectedTask: (taskText: string | null) => set({ selectedTask: taskText }),
       setTasks: (tasks: PomodoroTask[]) => set({ tasks }),
       setCompletedTasks: (tasks: PomodoroTask[]) => set({ completedTasks: tasks }),
       setArchivedTasks: (tasks: ArchivedTaskDay[]) => set({ archivedTasks: tasks }),

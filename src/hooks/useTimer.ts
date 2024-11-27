@@ -29,6 +29,16 @@ export const useTimer = () => {
   const timerRef = useRef<number>();
 
   /**
+   * Handles task completion and cleanup
+   */
+  const handleTaskCompletion = useCallback((completionText: string) => {
+    if (selectedTask) {
+      completeTask(selectedTask, completionText);
+      setSelectedTask(null);
+    }
+  }, [selectedTask, completeTask, setSelectedTask]);
+
+  /**
    * Starts a new Pomodoro session
    * Requires a selected task to begin
    */
@@ -63,12 +73,14 @@ export const useTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+    if (currentPhase === 'focus' && selectedTask) {
+      handleTaskCompletion('');
+    }
     setIsRunning(false);
     setIsPaused(false);
     setTimeLeft(FOCUS_TIME);
     setCurrentPhase('focus');
-    setSelectedTask(null);
-  }, [setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase, setSelectedTask]);
+  }, [setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase, currentPhase, selectedTask, handleTaskCompletion]);
 
   /**
    * Formats time in seconds to MM:SS display format
@@ -91,46 +103,30 @@ export const useTimer = () => {
             
             if (currentPhase === 'focus') {
               // Complete the task if it was a focus session
-              if (selectedTask) {
-                completeTask(selectedTask);
-              }
+              handleTaskCompletion('');
               
               // Switch to break
               setCurrentPhase('break');
               setTimeLeft(BREAK_TIME);
             } else {
-              // Switch back to focus
+              // Break completed, reset timer
+              setIsRunning(false);
               setCurrentPhase('focus');
               setTimeLeft(FOCUS_TIME);
-              setIsRunning(false);
             }
-            
-            // Play sound and show notification
-            const audio = new Audio(chrome.runtime.getURL('notification.mp3'));
-            audio.play().catch(console.error);
-            
-            chrome.notifications.create({
-              type: 'basic',
-              iconUrl: chrome.runtime.getURL('icon48.png'),
-              title: currentPhase === 'focus' ? 'Break Time!' : 'Focus Time!',
-              message: currentPhase === 'focus' 
-                ? 'Great work! Take a short break.'
-                : 'Break is over. Ready to focus?'
-            });
-
-            return currentPhase === 'focus' ? BREAK_TIME : FOCUS_TIME;
+            return 0;
           }
           return prevTime - 1;
         });
       }, 1000);
-    }
 
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isRunning, isPaused, currentPhase, selectedTask, completeTask, setCurrentPhase, setTimeLeft, setIsRunning]);
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+      };
+    }
+  }, [isRunning, isPaused, currentPhase, handleTaskCompletion, setTimeLeft, setCurrentPhase, setIsRunning]);
 
   return {
     isRunning,
@@ -142,7 +138,8 @@ export const useTimer = () => {
     handlePause,
     handleResume,
     handleStop,
-    formatTime
+    formatTime,
+    handleTaskCompletion
   };
 };
 

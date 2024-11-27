@@ -48,10 +48,10 @@ const Timer: React.FC = () => {
 
   return (
     <div className="text-center mb-4 sm:mb-6">
-      <div className="text-[2.5em] font-bold text-gray-800 mb-1 sm:mb-2">
+      <div className="text-[2.5em] font-bold text-white mb-1 sm:mb-2">
         {formatTime(timeLeft)}
       </div>
-      <div className={`text-sm font-medium ${currentPhase === 'break' ? 'text-green-600' : 'text-blue-600'}`}>
+      <div className={`text-sm font-medium ${currentPhase === 'break' ? 'text-green-300' : 'text-blue-300'}`}>
         {currentPhase === 'break' ? 'Break Time' : 'Focus Time'}
       </div>
 
@@ -63,7 +63,7 @@ const Timer: React.FC = () => {
             className={`px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 rounded-md flex items-center text-sm sm:text-base ${
               selectedTask
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-600 text-gray-300 cursor-not-allowed'
             }`}
             aria-label="Start timer"
           >
@@ -79,7 +79,7 @@ const Timer: React.FC = () => {
                 aria-label="Resume timer"
               >
                 <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                <span className="whitespace-nowrap">Resume</span>
+                <span>Resume</span>
               </button>
             ) : (
               <button
@@ -88,7 +88,7 @@ const Timer: React.FC = () => {
                 aria-label="Pause timer"
               >
                 <Pause className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                <span className="whitespace-nowrap">Pause</span>
+                <span>Pause</span>
               </button>
             )}
             <button
@@ -97,7 +97,7 @@ const Timer: React.FC = () => {
               aria-label="Stop timer"
             >
               <Square className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-              <span className="whitespace-nowrap">Stop</span>
+              <span>Stop</span>
             </button>
           </>
         )}

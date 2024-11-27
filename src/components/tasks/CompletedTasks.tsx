@@ -4,179 +4,89 @@ import { PomodoroTask } from '../../types';
 
 /**
  * CompletedTasks Component
- * 
- * Displays a list of completed tasks for the current session.
- * Shows task completion times and provides task management options.
- * 
- * Features:
- * - Scrollable list of completed tasks
- * - Task completion timestamps
- * - Task deletion functionality
- * - Empty state handling
- * - Responsive layout
- * 
- * Visual Elements:
- * - Task text with completion time
- * - Delete button for each task
- * - Scroll container with fixed height
- * - Proper spacing and alignment
- * 
- * Accessibility:
- * - Semantic list structure
- * - Proper button labels
- * - ARIA roles and labels
- * - Keyboard navigation support
- * 
- * @component
- * @example
- * return (
- *   <CompletedTasks />
- * )
+ * Displays a list of completed tasks for the current day
  */
 const CompletedTasks: React.FC = () => {
-  const { completedTasks, dailyStrategy } = usePomodoroStore();
+  const { completedTasks } = usePomodoroStore();
 
-  const parseDurationToMinutes = (duration: string): number => {
-    let totalMinutes = 0;
-    if (duration.includes('h')) {
-      const [hours, minutes] = duration.split('h');
-      totalMinutes += parseInt(hours) * 60;
-      if (minutes) {
-        totalMinutes += parseInt(minutes);
+  /**
+   * Combines identical tasks and sums their durations
+   */
+  const combinedTasks = React.useMemo(() => {
+    const taskMap = new Map<string, { count: number, totalDuration: string }>();
+
+    completedTasks.forEach(task => {
+      const existingTask = taskMap.get(task.text);
+      if (existingTask) {
+        // Extract minutes from "XX mins" format
+        const currentMins = parseInt(task.duration.split(' ')[0]);
+        const existingMins = parseInt(existingTask.totalDuration.split(' ')[0]);
+        
+        taskMap.set(task.text, {
+          count: existingTask.count + 1,
+          totalDuration: `${currentMins + existingMins} mins`
+        });
+      } else {
+        taskMap.set(task.text, {
+          count: 1,
+          totalDuration: task.duration
+        });
       }
-    } else {
-      totalMinutes += parseInt(duration);
-    }
-    return totalMinutes;
-  };
+    });
 
-  const formatMinutesToDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return hours > 0 ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
-  };
+    return Array.from(taskMap.entries()).map(([text, details]) => ({
+      text,
+      duration: details.totalDuration,
+      count: details.count
+    }));
+  }, [completedTasks]);
 
-  interface GroupedTask extends PomodoroTask {
-    totalMinutes: number;
-  }
-
-  type GroupedTasks = {
-    [key: string]: GroupedTask;
-  };
-
+  /**
+   * Calculates total time spent on all tasks
+   */
   const calculateTotalTime = (tasks: PomodoroTask[]): string => {
     const totalMinutes = tasks.reduce((total, task) => {
-      return total + parseDurationToMinutes(task.duration);
+      const minutes = parseInt(task.duration.split(' ')[0]);
+      return total + minutes;
     }, 0);
-    return formatMinutesToDuration(totalMinutes);
+
+    if (totalMinutes === 0) return '0 mins';
+    return `${totalMinutes} mins`;
   };
 
-  // Group tasks by text for key and secondary tasks
-  const groupedTasks: GroupedTasks = completedTasks.reduce((acc: GroupedTasks, task) => {
-    if (task.type === 'key' || task.type === 'secondary') {
-      if (!acc[task.text]) {
-        acc[task.text] = {
-          ...task,
-          totalMinutes: parseDurationToMinutes(task.duration),
-          completedPomodoros: task.completedPomodoros || 0
-        };
-      } else {
-        acc[task.text].totalMinutes += parseDurationToMinutes(task.duration);
-        acc[task.text].completedPomodoros += task.completedPomodoros || 0;
-        acc[task.text].duration = formatMinutesToDuration(acc[task.text].totalMinutes);
-      }
-    } else {
-      // For regular tasks, keep them as individual entries
-      if (!acc[task.text + task.timestamp]) { // Use timestamp to make key unique
-        acc[task.text + task.timestamp] = {
-          ...task,
-          totalMinutes: parseDurationToMinutes(task.duration),
-          completedPomodoros: task.completedPomodoros || 0
-        };
-      }
-    }
-    return acc;
-  }, {});
-
-  const sortedTasks = Object.values(groupedTasks).sort((a, b) => {
-    // Sort by type first (key tasks first, then secondary, then rest)
-    const typeOrder: { [key: string]: number } = { key: 0, secondary: 1, rest: 2 };
-    const aType = a.type || 'rest';
-    const bType = b.type || 'rest';
-    
-    if (typeOrder[aType] !== typeOrder[bType]) {
-      return typeOrder[aType] - typeOrder[bType];
-    }
-    // Then sort by timestamp
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
-
-  const isTaskOverrun = (task: GroupedTask): boolean => {
-    if (!dailyStrategy) return false;
-    
-    if (task.type === 'key' && dailyStrategy.keyTask === task.text) {
-      return (task.completedPomodoros || 0) > (dailyStrategy.keyTaskPomodoros || 0);
-    }
-    if (task.type === 'secondary' && dailyStrategy.secondaryTask === task.text) {
-      return (task.completedPomodoros || 0) > (dailyStrategy.secondaryTaskPomodoros || 0);
-    }
-    return false;
-  };
+  if (!completedTasks.length) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-gray-300">
+        No completed tasks yet
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 min-h-0">
-      <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3">Tasks done today</h2>
-      <div 
-        className="space-y-1.5 sm:space-y-2 overflow-y-auto max-h-full"
-        role="list"
-        aria-label="Completed tasks"
-      >
-        {sortedTasks.map((task, index) => {
-          const overrun = isTaskOverrun(task);
-          return (
-            <div 
-              key={index} 
-              className="flex items-center text-sm sm:text-base text-gray-700"
-              role="listitem"
-            >
-              <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${
-                task.type === 'key' ? 'bg-blue-500' : 
-                task.type === 'secondary' ? 'bg-green-500' : 
-                'bg-gray-500'
-              }`} aria-hidden="true"></div>
-              <span className={`truncate ${overrun ? 'text-red-600 font-bold' : ''}`}>
-                {task.text}
-              </span>
-              <span 
-                className={`ml-2 flex-shrink-0 ${overrun ? 'text-red-600 font-bold' : ''}`}
-                aria-label={`${task.completedPomodoros || 0} pomodoros, duration: ${task.duration}`}
-              >
-                {task.completedPomodoros || 0}
-                {(task.type === 'key' && dailyStrategy?.keyTask === task.text) ? 
-                  `/${dailyStrategy.keyTaskPomodoros}` : 
-                  (task.type === 'secondary' && dailyStrategy?.secondaryTask === task.text) ? 
-                    `/${dailyStrategy.secondaryTaskPomodoros}` : 
-                    ''
-                }
-                {' 🍅 - '}
-                {task.duration}
-              </span>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="text-sm font-medium text-gray-200 mb-2">
+        Tasks done today ({calculateTotalTime(completedTasks)})
+      </div>
+      <div className="completed-tasks-container flex-1 overflow-y-auto">
+        {combinedTasks.map((task, index) => (
+          <div 
+            key={index}
+            className="task-row bg-white border border-gray-200 p-3 flex justify-between items-center"
+            role="listitem"
+          >
+            <div className="task-title text-gray-800 flex-1">
+              {task.text}
+              {task.count > 1 && (
+                <span className="ml-2 text-sm text-gray-500">
+                  ({task.count}×)
+                </span>
+              )}
             </div>
-          );
-        })}
-        {sortedTasks.length === 0 && (
-          <div className="text-sm text-gray-500" role="status">No tasks completed yet</div>
-        )}
-        {sortedTasks.length > 0 && (
-          <div className="pt-3 mt-3 sm:pt-4 sm:mt-4 border-t border-gray-200">
-            <div className="flex justify-between text-sm sm:text-base text-gray-700">
-              <span>Total time today:</span>
-              <span role="status" aria-label={`Total time: ${calculateTotalTime(completedTasks)}`}>
-                {calculateTotalTime(completedTasks)}
-              </span>
+            <div className="task-stats text-gray-600 ml-4">
+              {task.duration}
             </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

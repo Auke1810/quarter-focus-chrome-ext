@@ -41,7 +41,7 @@ html, body, #root {
 
 .app-footer {
   @apply p-[0.5rem] border-t border-gray-200;
-  background-color: #16233d;
+  background-color:#16233d;
 }
 
 .footer-link {
@@ -55,4 +55,51 @@ html, body, #root {
 
 .footer-separator {
   color: #e9530d;
+}
+
+/* Custom flex utilities */
+.flex-1 {
+  flex: auto;
+}
+
+/* Completed Tasks Styles */
+.completed-tasks-container {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.completed-tasks-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.completed-tasks-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.completed-tasks-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.task-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+}
+
+
+.task-title {
+  color: #1f2937;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.task-stats {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }

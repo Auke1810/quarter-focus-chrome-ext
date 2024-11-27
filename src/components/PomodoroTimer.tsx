@@ -70,7 +70,7 @@ const PomodoroTimer: React.FC = () => {
 
   return (
     <div 
-      className="h-full flex flex-col bg-gray-50"
+      className="h-full flex flex-col bg-[#545454] overflow-hidden"
       role="application"
       aria-label="Pomodoro Timer Application"
     >
@@ -79,7 +79,7 @@ const PomodoroTimer: React.FC = () => {
         <DailyIntention />
       </div>
       
-      <main className="flex-1 flex flex-col p-4 sm:p-6 overflow-hidden">
+      <main className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto text-white">
         <TimerContainer />
         <TaskManager />
       </main>

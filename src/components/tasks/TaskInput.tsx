@@ -40,7 +40,7 @@ const TaskInput: React.FC = () => {
 
   return (
     <div className="mb-4 sm:mb-6">
-      <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2" htmlFor="current-task">
+      <label className="block text-sm font-medium text-white mb-1 sm:mb-2" htmlFor="current-task">
         Current Task
       </label>
       <div className="relative task-dropdown-container">
@@ -51,7 +51,7 @@ const TaskInput: React.FC = () => {
           onChange={(e) => setSelectedTask(e.target.value)}
           onFocus={() => setShowTaskDropdown(true)}
           placeholder="What are you working on?"
-          className="w-full p-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 text-sm sm:text-base text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label="Current task input"
           aria-expanded={showTaskDropdown}
           aria-controls={showTaskDropdown ? "task-suggestions" : undefined}
@@ -68,7 +68,7 @@ const TaskInput: React.FC = () => {
               <button
                 onClick={() => selectPredefinedTask('key')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm w-full ${
-                  selectedTask === dailyStrategy.keyTask ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                  selectedTask === dailyStrategy.keyTask ? 'bg-blue-100 text-blue-700' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 role="option"
                 aria-selected={selectedTask === dailyStrategy.keyTask}
@@ -85,7 +85,7 @@ const TaskInput: React.FC = () => {
               <button
                 onClick={() => selectPredefinedTask('secondary')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm w-full ${
-                  selectedTask === dailyStrategy.secondaryTask ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                  selectedTask === dailyStrategy.secondaryTask ? 'bg-blue-100 text-blue-700' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 role="option"
                 aria-selected={selectedTask === dailyStrategy.secondaryTask}
