@@ -10,34 +10,57 @@ const CompletedTasks: React.FC = () => {
   const { completedTasks } = usePomodoroStore();
 
   /**
-   * Combines identical tasks and sums their durations
+   * Formats minutes into hours and minutes string (e.g., "1h15m")
+   */
+  const formatDuration = (minutes: number): string => {
+    if (minutes === 0) return '0m';
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (hours === 0) return `${remainingMinutes}m`;
+    if (remainingMinutes === 0) return `${hours}h`;
+    return `${hours}h${remainingMinutes}m`;
+  };
+
+  /**
+   * Parses duration from either string ("25 mins") or number format
+   */
+  const parseDuration = (duration: string | number): number => {
+    if (typeof duration === 'number') return duration;
+    return parseInt(duration.split(' ')[0]) || 0;
+  };
+
+  /**
+   * Combines identical tasks and sums their durations and pomodoro counts
    */
   const combinedTasks = React.useMemo(() => {
-    const taskMap = new Map<string, { count: number, totalDuration: string }>();
+    const taskMap = new Map<string, { count: number, totalDuration: number, pomodoroCount: number }>();
 
     completedTasks.forEach(task => {
       const existingTask = taskMap.get(task.text);
+      const pomodoroCount = task.pomodoroCount || 1;
+      const duration = parseDuration(task.duration);
+
       if (existingTask) {
-        // Extract minutes from "XX mins" format
-        const currentMins = parseInt(task.duration.split(' ')[0]);
-        const existingMins = parseInt(existingTask.totalDuration.split(' ')[0]);
-        
         taskMap.set(task.text, {
           count: existingTask.count + 1,
-          totalDuration: `${currentMins + existingMins} mins`
+          totalDuration: existingTask.totalDuration + duration,
+          pomodoroCount: existingTask.pomodoroCount + pomodoroCount
         });
       } else {
         taskMap.set(task.text, {
           count: 1,
-          totalDuration: task.duration
+          totalDuration: duration,
+          pomodoroCount: pomodoroCount
         });
       }
     });
 
     return Array.from(taskMap.entries()).map(([text, details]) => ({
       text,
-      duration: details.totalDuration,
-      count: details.count
+      duration: formatDuration(details.totalDuration),
+      count: details.count,
+      pomodoroCount: details.pomodoroCount
     }));
   }, [completedTasks]);
 
@@ -45,13 +68,15 @@ const CompletedTasks: React.FC = () => {
    * Calculates total time spent on all tasks
    */
   const calculateTotalTime = (tasks: PomodoroTask[]): string => {
-    const totalMinutes = tasks.reduce((total, task) => {
-      const minutes = parseInt(task.duration.split(' ')[0]);
-      return total + minutes;
-    }, 0);
+    const totalMinutes = tasks.reduce((total, task) => total + parseDuration(task.duration), 0);
+    return formatDuration(totalMinutes);
+  };
 
-    if (totalMinutes === 0) return '0 mins';
-    return `${totalMinutes} mins`;
+  /**
+   * Calculates total pomodoro count
+   */
+  const calculateTotalPomodoros = (): number => {
+    return completedTasks.reduce((total, task) => total + (task.pomodoroCount || 1), 0);
   };
 
   if (!completedTasks.length) {
@@ -65,7 +90,7 @@ const CompletedTasks: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="text-sm font-medium text-gray-200 mb-2">
-        Tasks done today ({calculateTotalTime(completedTasks)})
+        Tasks done today ({calculateTotalPomodoros()}/{calculateTotalTime(completedTasks)})
       </div>
       <div className="completed-tasks-container flex-1 overflow-y-auto">
         {combinedTasks.map((task, index) => (
@@ -82,8 +107,8 @@ const CompletedTasks: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="task-stats text-gray-600 ml-4">
-              {task.duration}
+            <div className="task-stats text-gray-600 ml-4 flex items-center gap-2">
+              <span>{task.pomodoroCount}/{task.duration}</span>
             </div>
           </div>
         ))}

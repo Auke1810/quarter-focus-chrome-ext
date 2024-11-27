@@ -229,57 +229,36 @@ export type StorageState = {
 export type ModalType = 'strategy' | 'archive' | null;
 
 export interface PomodoroStore {
-  // Timer state
   isRunning: boolean;
   isPaused: boolean;
   timeLeft: number;
   currentPhase: 'focus' | 'break';
-  
-  // Task state
   tasks: PomodoroTask[];
   completedTasks: PomodoroTask[];
   selectedTask: string | null;
   showTaskDropdown: boolean;
   archivedTasks: ArchivedTaskDay[];
-  
-  // Strategy state
   dailyStrategy: PomodoroDailyStrategy | null;
-  
-  // Modal state
   activeModal: 'strategy' | 'archive' | null;
-  
-  // Loading state
   isLoading: boolean;
   isInitialized: boolean;
-
-  // Initialize store
   initialize: () => Promise<void>;
-  
-  // Timer actions
   setIsRunning: (isRunning: boolean) => void;
   setIsPaused: (isPaused: boolean) => void;
   setTimeLeft: (timeLeft: number | ((prev: number) => number)) => void;
   setCurrentPhase: (currentPhase: 'focus' | 'break') => void;
   resetTimer: () => void;
-  
-  // Task actions
   addTask: (task: PomodoroTask) => void;
   removeTask: (taskId: string) => void;
-  completeTask: (taskId: string) => void;
+  completeTask: (taskText: string, elapsedMinutes: number, isFullPomodoro: boolean) => void;
   setSelectedTask: (taskId: string | null) => void;
   setTasks: (tasks: PomodoroTask[]) => void;
   setCompletedTasks: (tasks: PomodoroTask[]) => void;
   setArchivedTasks: (tasks: ArchivedTaskDay[]) => void;
   setShowTaskDropdown: (show: boolean) => void;
   selectPredefinedTask: (taskType: 'key' | 'secondary') => void;
-  
-  // Strategy actions
   setDailyStrategy: (strategy: PomodoroDailyStrategy | null) => void;
-  
-  // Modal actions
   setActiveModal: (modal: 'strategy' | 'archive' | null) => void;
   closeModal: () => void;
-  
-  // Storage sync
   persistToStorage: () => Promise<void>;
 }

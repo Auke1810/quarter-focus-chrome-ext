@@ -86,12 +86,13 @@ const usePomodoroStore = create<PomodoroStore>()(
         set(state => ({
           tasks: state.tasks.filter(task => task.id !== taskId)
         })),
-      completeTask: (taskText: string) => {
+      completeTask: (taskText: string, elapsedMinutes: number, isFullPomodoro: boolean) => {
         const completedTask = {
           id: Date.now().toString(),
           text: taskText,
-          duration: '25 mins',
-          completedAt: new Date().toISOString()
+          duration: elapsedMinutes,
+          completedAt: new Date().toISOString(),
+          pomodoroCount: isFullPomodoro ? 1 : 0
         };
         
         set(state => ({

@@ -31,12 +31,14 @@ export const useTimer = () => {
   /**
    * Handles task completion and cleanup
    */
-  const handleTaskCompletion = useCallback((completionText: string) => {
+  const handleTaskCompletion = useCallback(() => {
     if (selectedTask) {
-      completeTask(selectedTask, completionText);
+      const elapsedMinutes = Math.ceil((FOCUS_TIME - timeLeft) / 60);
+      const isFullPomodoro = timeLeft === 0; // Only count if timer reached 0
+      completeTask(selectedTask, elapsedMinutes, isFullPomodoro);
       setSelectedTask(null);
     }
-  }, [selectedTask, completeTask, setSelectedTask]);
+  }, [selectedTask, timeLeft, completeTask, setSelectedTask]);
 
   /**
    * Starts a new Pomodoro session
@@ -74,7 +76,7 @@ export const useTimer = () => {
       clearInterval(timerRef.current);
     }
     if (currentPhase === 'focus' && selectedTask) {
-      handleTaskCompletion('');
+      handleTaskCompletion();
     }
     setIsRunning(false);
     setIsPaused(false);
@@ -103,7 +105,7 @@ export const useTimer = () => {
             
             if (currentPhase === 'focus') {
               // Complete the task if it was a focus session
-              handleTaskCompletion('');
+              handleTaskCompletion();
               
               // Switch to break
               setCurrentPhase('break');
