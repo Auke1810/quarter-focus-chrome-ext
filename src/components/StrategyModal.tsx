@@ -3,6 +3,42 @@ import { X } from 'lucide-react';
 import { PomodoroDailyStrategy } from '../types';
 import usePomodoroStore from '../store/pomodoroStore';
 
+/**
+ * StrategyModal Component
+ * 
+ * Modal interface for setting and managing daily strategy and intentions.
+ * Allows users to define their key task, secondary tasks, and daily intention.
+ * 
+ * Features:
+ * - Daily intention input
+ * - Key task definition
+ * - Secondary tasks management
+ * - Task validation
+ * - Auto-save functionality
+ * 
+ * Form Elements:
+ * - Text inputs for tasks and intention
+ * - Add/Remove buttons for secondary tasks
+ * - Save and close functionality
+ * - Validation feedback
+ * 
+ * State Management:
+ * - Local form state
+ * - Integration with Zustand store
+ * - Persistence to Chrome storage
+ * 
+ * Accessibility:
+ * - Modal focus management
+ * - Form labels and descriptions
+ * - Error messaging
+ * - Keyboard navigation
+ * 
+ * @component
+ * @example
+ * return (
+ *   <StrategyModal />
+ * )
+ */
 const StrategyModal: React.FC = () => {
   const { 
     activeModal,

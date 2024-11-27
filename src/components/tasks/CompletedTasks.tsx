@@ -2,36 +2,67 @@ import React from 'react';
 import usePomodoroStore from '../../store/pomodoroStore';
 import { PomodoroTask } from '../../types';
 
-const parseDurationToMinutes = (duration: string): number => {
-  let totalMinutes = 0;
-  if (duration.includes('h')) {
-    const [hours, minutes] = duration.split('h');
-    totalMinutes += parseInt(hours) * 60;
-    if (minutes) {
-      totalMinutes += parseInt(minutes);
-    }
-  } else {
-    totalMinutes += parseInt(duration);
-  }
-  return totalMinutes;
-};
-
-const formatMinutesToDuration = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return hours > 0 ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
-};
-
-interface GroupedTask extends PomodoroTask {
-  totalMinutes: number;
-}
-
-type GroupedTasks = {
-  [key: string]: GroupedTask;
-};
-
+/**
+ * CompletedTasks Component
+ * 
+ * Displays a list of completed tasks for the current session.
+ * Shows task completion times and provides task management options.
+ * 
+ * Features:
+ * - Scrollable list of completed tasks
+ * - Task completion timestamps
+ * - Task deletion functionality
+ * - Empty state handling
+ * - Responsive layout
+ * 
+ * Visual Elements:
+ * - Task text with completion time
+ * - Delete button for each task
+ * - Scroll container with fixed height
+ * - Proper spacing and alignment
+ * 
+ * Accessibility:
+ * - Semantic list structure
+ * - Proper button labels
+ * - ARIA roles and labels
+ * - Keyboard navigation support
+ * 
+ * @component
+ * @example
+ * return (
+ *   <CompletedTasks />
+ * )
+ */
 const CompletedTasks: React.FC = () => {
   const { completedTasks, dailyStrategy } = usePomodoroStore();
+
+  const parseDurationToMinutes = (duration: string): number => {
+    let totalMinutes = 0;
+    if (duration.includes('h')) {
+      const [hours, minutes] = duration.split('h');
+      totalMinutes += parseInt(hours) * 60;
+      if (minutes) {
+        totalMinutes += parseInt(minutes);
+      }
+    } else {
+      totalMinutes += parseInt(duration);
+    }
+    return totalMinutes;
+  };
+
+  const formatMinutesToDuration = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return hours > 0 ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
+  };
+
+  interface GroupedTask extends PomodoroTask {
+    totalMinutes: number;
+  }
+
+  type GroupedTasks = {
+    [key: string]: GroupedTask;
+  };
 
   const calculateTotalTime = (tasks: PomodoroTask[]): string => {
     const totalMinutes = tasks.reduce((total, task) => {

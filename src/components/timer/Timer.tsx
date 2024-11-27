@@ -2,6 +2,36 @@ import React from 'react';
 import { Play, Pause, Square } from 'lucide-react';
 import { useTimer } from '../../hooks/useTimer';
 
+/**
+ * Timer Component
+ * 
+ * Displays the timer interface with controls and current status.
+ * Provides visual feedback for different timer states and phases.
+ * 
+ * Features:
+ * - Large time display in MM:SS format
+ * - Phase indicator (Focus/Break)
+ * - Context-aware control buttons
+ * - Responsive design with mobile-friendly sizing
+ * 
+ * Visual States:
+ * - Not Started: Shows Start button (disabled if no task selected)
+ * - Running: Shows Pause and Stop buttons
+ * - Paused: Shows Resume and Stop buttons
+ * - Break/Focus phases with different color schemes
+ * 
+ * Accessibility:
+ * - Proper button labels
+ * - Color contrast compliance
+ * - Icon + text for better comprehension
+ * - Disabled state handling
+ * 
+ * @component
+ * @example
+ * return (
+ *   <Timer />
+ * )
+ */
 const Timer: React.FC = () => {
   const {
     isRunning,

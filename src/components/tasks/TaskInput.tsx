@@ -1,6 +1,31 @@
 import React from 'react';
 import usePomodoroStore from '../../store/pomodoroStore';
 
+/**
+ * TaskInput Component
+ * 
+ * A combobox-style input field for selecting or entering the current task.
+ * Provides suggestions based on daily strategy tasks (key task, secondary tasks).
+ * 
+ * Features:
+ * - Text input for custom task entry
+ * - Dropdown with predefined tasks from daily strategy
+ * - Keyboard accessible combobox functionality
+ * - Visual feedback for selected tasks
+ * - Responsive design with mobile-friendly spacing
+ * 
+ * Accessibility:
+ * - Proper ARIA labels and roles for combobox pattern
+ * - Keyboard navigation support
+ * - Clear focus indicators
+ * - Screen reader friendly task suggestions
+ * 
+ * @component
+ * @example
+ * return (
+ *   <TaskInput />
+ * )
+ */
 const TaskInput: React.FC = () => {
   const { 
     selectedTask, 

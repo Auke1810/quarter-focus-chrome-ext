@@ -3,6 +3,42 @@ import { X } from 'lucide-react';
 import usePomodoroStore from '../store/pomodoroStore';
 import { Task } from '../types';
 
+/**
+ * TaskArchiveModal Component
+ * 
+ * Modal interface displaying historical task completion data.
+ * Shows completed tasks grouped by date with duration information.
+ * 
+ * Features:
+ * - Historical task viewing
+ * - Task grouping by date
+ * - Duration calculations
+ * - Scrollable content
+ * 
+ * Data Display:
+ * - Task completion dates
+ * - Task names and durations
+ * - Total time per task
+ * - Daily summaries
+ * 
+ * Visual Elements:
+ * - Modal container with header
+ * - Close button
+ * - Scrollable task list
+ * - Task groupings with headers
+ * 
+ * Accessibility:
+ * - Modal focus management
+ * - Semantic HTML structure
+ * - Proper headings hierarchy
+ * - Keyboard navigation
+ * 
+ * @component
+ * @example
+ * return (
+ *   <TaskArchiveModal />
+ * )
+ */
 const TaskArchiveModal: React.FC = () => {
   const { activeModal, closeModal, archivedTasks } = usePomodoroStore();
 

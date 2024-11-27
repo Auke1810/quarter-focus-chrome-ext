@@ -1,9 +1,15 @@
 import { useEffect, useRef, useCallback } from 'react';
 import usePomodoroStore from '../store/pomodoroStore';
 
+/** Constants for timer durations */
 const FOCUS_TIME = 25 * 60; // 25 minutes in seconds
 const BREAK_TIME = 5 * 60; // 5 minutes in seconds
 
+/**
+ * Custom hook for managing the Pomodoro timer functionality
+ * Handles timer state, phase transitions, and task completion
+ * @returns {Object} Timer control methods and state
+ */
 export const useTimer = () => {
   const {
     isRunning,
@@ -19,8 +25,13 @@ export const useTimer = () => {
     setSelectedTask
   } = usePomodoroStore();
 
+  /** Reference to the timer interval */
   const timerRef = useRef<number>();
 
+  /**
+   * Starts a new Pomodoro session
+   * Requires a selected task to begin
+   */
   const handleStart = useCallback(() => {
     if (!selectedTask) return;
     setIsRunning(true);
@@ -29,14 +40,25 @@ export const useTimer = () => {
     setCurrentPhase('focus');
   }, [selectedTask, setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase]);
 
+  /**
+   * Pauses the current timer
+   * Maintains the current time and phase
+   */
   const handlePause = useCallback(() => {
     setIsPaused(true);
   }, [setIsPaused]);
 
+  /**
+   * Resumes the timer from a paused state
+   */
   const handleResume = useCallback(() => {
     setIsPaused(false);
   }, [setIsPaused]);
 
+  /**
+   * Stops the timer completely
+   * Resets all timer state and clears the selected task
+   */
   const handleStop = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -48,6 +70,11 @@ export const useTimer = () => {
     setSelectedTask(null);
   }, [setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase, setSelectedTask]);
 
+  /**
+   * Formats time in seconds to MM:SS display format
+   * @param {number} timeInSeconds - Time to format in seconds
+   * @returns {string} Formatted time string (MM:SS)
+   */
   const formatTime = useCallback((timeInSeconds: number): string => {
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = timeInSeconds % 60;

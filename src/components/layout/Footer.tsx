@@ -1,6 +1,25 @@
 import React from 'react';
 import usePomodoroStore from '../../store/pomodoroStore';
 
+/**
+ * Footer Component
+ * 
+ * Application footer containing navigation links to Strategy and History modals.
+ * Features a distinctive styling with interactive elements.
+ * 
+ * Features:
+ * - Strategy and History links aligned to the right
+ * - Orange links (#e9530d) that turn white on hover
+ * - Separated by a matching orange pipe character
+ * - Dark blue background (#16233d)
+ * - Consistent 0.5rem padding
+ * 
+ * @component
+ * @example
+ * return (
+ *   <Footer />
+ * )
+ */
 const Footer: React.FC = () => {
   const { setActiveModal } = usePomodoroStore();
 

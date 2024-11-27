@@ -1,6 +1,24 @@
 import React from 'react';
 import usePomodoroStore from '../../store/pomodoroStore';
 
+/**
+ * Header Component
+ * 
+ * Main header of the Quarter Focus application.
+ * Displays the application logo and title with a distinctive styling.
+ * 
+ * Features:
+ * - 16px Quarter Focus icon
+ * - Two-part title: "Quarter Focus:" in white and "only today" in blue
+ * - Dark blue background (#16233d)
+ * - Consistent 0.5rem padding
+ * 
+ * @component
+ * @example
+ * return (
+ *   <Header />
+ * )
+ */
 const Header: React.FC = () => {
   const { currentPhase } = usePomodoroStore();
 
