@@ -1,6 +1,6 @@
 // Constants for timer durations
 const WORK_TIME = 25 * 60;  // 25 minutes
-const BREAK_TIME = 5 * 60; // 5 minutes
+const BREAK_TIME = 5 * 60;  // 5 minutes
 
 let activePopup = null;
 let timerState = {
@@ -199,14 +199,6 @@ async function handleTimerComplete() {
     }).catch(() => {
       console.log('No active popup to play sound');
     });
-
-    // If completing a work session, increment the Pomodoro count
-    if (!timerState.isBreak) {
-      chrome.storage.local.get(['completedPomodoros'], (result) => {
-        const currentCount = result.completedPomodoros || 0;
-        chrome.storage.local.set({ completedPomodoros: currentCount + 1 });
-      });
-    }
 
     // Update timer state
     timerState.isBreak = !timerState.isBreak;

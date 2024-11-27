@@ -4,7 +4,8 @@
   "version": "2.4.0",
   "description": "A Pomodoro timer Chrome extension focused on simplicity and daily task tracking",
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_icon": {
@@ -16,11 +17,20 @@
   "permissions": [
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "windows",
+    "tabs"
   ],
   "web_accessible_resources": [{
-    "resources": ["notification.wav", "complete.wav"],
-    "matches": ["<all_urls>"]
+    "resources": [
+      "index.html",
+      "assets/*",
+      "notification.wav",
+      "complete.wav"
+    ],
+    "matches": [
+      "chrome-extension://*/*"
+    ]
   }],
   "icons": {
     "16": "icons/icon16.png",

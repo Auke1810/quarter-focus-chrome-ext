@@ -14,3 +14,45 @@ html, body, #root {
   display: flex;
   flex-direction: column;
 }
+
+/* Custom styles */
+.app-header {
+  @apply p-[0.5rem] border-b border-gray-200;
+  background-color: #16233d;
+}
+
+.header-title {
+  @apply text-[1rem] font-semibold text-white;
+}
+
+.header-subtitle {
+  @apply text-[1rem];
+  color: #8bb7e3;
+}
+
+.daily-intention {
+  @apply w-full py-2 px-3;
+  background-color: #04618c;
+}
+
+.daily-intention-text {
+  @apply text-sm sm:text-base text-white italic text-center;
+}
+
+.app-footer {
+  @apply p-[0.5rem] border-t border-gray-200;
+  background-color: #16233d;
+}
+
+.footer-link {
+  @apply transition-colors;
+  color: #e9530d;
+}
+
+.footer-link:hover {
+  color: #ffffff;
+}
+
+.footer-separator {
+  color: #e9530d;
+}
