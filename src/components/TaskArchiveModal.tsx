@@ -89,7 +89,7 @@ const TaskArchiveModal: React.FC = () => {
           {archivedTasks.length === 0 ? (
             <p className="text-gray-500 text-center py-4" role="status">No archived tasks available</p>
           ) : (
-            archivedTasks.map((dayData, dayIndex) => (
+            archivedTasks.map((dayData) => (
               <div key={dayData.date} className="mb-6 last:mb-0">
                 <h3 className="text-lg font-medium mb-2">{dayData.date}</h3>
                 <div className="space-y-2" role="list">

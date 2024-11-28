@@ -25,9 +25,11 @@ const CompletedTasks: React.FC = () => {
   /**
    * Parses duration from either string ("25 mins") or number format
    */
-  const parseDuration = (duration: string | number): number => {
+  const parseDuration = (duration: string | number | undefined): number => {
+    if (!duration) return 0;
     if (typeof duration === 'number') return duration;
-    return parseInt(duration.split(' ')[0]) || 0;
+    const match = duration.match(/\d+/);
+    return match ? parseInt(match[0]) : 0;
   };
 
   /**
@@ -37,8 +39,10 @@ const CompletedTasks: React.FC = () => {
     const taskMap = new Map<string, { count: number, totalDuration: number, pomodoroCount: number }>();
 
     completedTasks.forEach(task => {
+      if (!task || !task.text) return; // Skip invalid tasks
+      
       const existingTask = taskMap.get(task.text);
-      const pomodoroCount = task.pomodoroCount || 1;
+      const pomodoroCount = task.pomodoroCount || 0;
       const duration = parseDuration(task.duration);
 
       if (existingTask) {
@@ -56,11 +60,11 @@ const CompletedTasks: React.FC = () => {
       }
     });
 
-    return Array.from(taskMap.entries()).map(([text, details]) => ({
+    return Array.from(taskMap.entries()).map(([text, stats]) => ({
       text,
-      duration: formatDuration(details.totalDuration),
-      count: details.count,
-      pomodoroCount: details.pomodoroCount
+      count: stats.count,
+      duration: formatDuration(stats.totalDuration),
+      pomodoroCount: stats.pomodoroCount
     }));
   }, [completedTasks]);
 
@@ -76,13 +80,13 @@ const CompletedTasks: React.FC = () => {
    * Calculates total pomodoro count
    */
   const calculateTotalPomodoros = (): number => {
-    return completedTasks.reduce((total, task) => total + (task.pomodoroCount || 1), 0);
+    return completedTasks.reduce((total, task) => total + (task.pomodoroCount || 0), 0);
   };
 
-  if (!completedTasks.length) {
+  if (!completedTasks || completedTasks.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-300">
-        No completed tasks yet
+        No completed tasks yet today
       </div>
     );
   }

@@ -1,19 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { requestNotificationPermission, showNotification } from '../services/chromeRuntime';
+import { ASSETS } from '../constants';
 
 export const useSound = () => {
-  const [notificationSound] = useState(new Audio(chrome.runtime.getURL('notification.mp3')));
-  const [completionSound] = useState(new Audio(chrome.runtime.getURL('completion.mp3')));
+  const [notificationSound] = useState(new Audio(chrome.runtime.getURL('notification.wav')));
+  const [completionSound] = useState(new Audio(chrome.runtime.getURL('complete.wav')));
   const [hasPermission, setHasPermission] = useState(false);
 
-  useEffect(() => {
-    const checkPermissions = async () => {
-      const granted = await requestNotificationPermission();
-      setHasPermission(granted);
-    };
-
-    checkPermissions();
-  }, []);
+  const ensurePermissions = async () => {
+    if (!hasPermission) {
+      try {
+        const granted = await requestNotificationPermission();
+        setHasPermission(granted);
+        return granted;
+      } catch (error) {
+        console.error('Error requesting notification permission:', error);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const playNotificationSound = async (message) => {
     try {
@@ -23,7 +29,8 @@ export const useSound = () => {
         await showNotification({
           title: 'Quarter Focus',
           message: message || 'Time to take a break!',
-          priority: 2
+          priority: 2,
+          iconUrl: chrome.runtime.getURL(ASSETS.ICON)
         });
       }
     } catch (error) {
@@ -39,7 +46,8 @@ export const useSound = () => {
         await showNotification({
           title: 'Quarter Focus',
           message: message || 'Great job completing your session!',
-          priority: 2
+          priority: 2,
+          iconUrl: chrome.runtime.getURL(ASSETS.ICON)
         });
       }
     } catch (error) {

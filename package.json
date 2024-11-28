@@ -1,7 +1,7 @@
 {
   "name": "quarter-focus-chrome-ext",
   "private": true,
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "A Pomodoro timer Chrome extension focused on simplicity and daily task tracking",
   "type": "module",
   "scripts": {

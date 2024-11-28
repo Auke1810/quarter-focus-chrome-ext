@@ -54,17 +54,15 @@ export const windowExists = async (url: string): Promise<boolean> => {
  * @returns Created window
  */
 export const createWindow = async (options: WindowOptions): Promise<chrome.windows.Window> => {
-  try {
-    const defaultOptions = {
-      width: WINDOW.DEFAULT_WIDTH,
-      height: WINDOW.DEFAULT_HEIGHT,
-      type: 'popup' as chrome.windows.WindowType
-    };
-    return await chrome.windows.create({ ...defaultOptions, ...options });
-  } catch (error) {
-    console.error('Error creating window:', error);
-    throw error;
-  }
+  const { url, width = WINDOW.DEFAULT_WIDTH, height = WINDOW.DEFAULT_HEIGHT, type = 'popup' } = options;
+
+  return await chrome.windows.create({
+    url,
+    width,
+    height,
+    type: type as 'normal' | 'popup' | 'panel',
+    focused: true
+  });
 };
 
 /**
@@ -118,18 +116,24 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 /**
  * Show a Chrome notification
  * @param options - Notification options
- * @returns Notification ID
+ * @returns Notification ID or empty string on error
  */
 export const showNotification = async (options: NotificationOptions): Promise<string> => {
   try {
-    return await chrome.notifications.create('', {
-      type: 'basic',
+    const notificationOptions = {
+      type: 'basic' as const,
       iconUrl: ASSETS.ICON,
       title: NOTIFICATIONS.DEFAULT_TITLE,
-      ...options
+      message: options.message || 'Notification message'
+    };
+    const notificationId = await new Promise<string>((resolve) => {
+      chrome.notifications.create('', notificationOptions, (id) => {
+        resolve(id || '');
+      });
     });
+    return notificationId;
   } catch (error) {
     console.error('Error showing notification:', error);
-    throw error;
+    return '';
   }
 };

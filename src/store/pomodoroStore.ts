@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { PomodoroStore, PomodoroTask, PomodoroDailyStrategy, ArchivedTaskDay } from '../types';
+import { isToday } from '../utils/dateUtils';
 
 const INITIAL_STATE = {
   // Timer state
@@ -33,12 +34,21 @@ const usePomodoroStore = create<PomodoroStore>()(
     (set, get) => ({
       ...INITIAL_STATE,
 
+      // Helper functions
+      isToday: (dateString: string) => {
+        const date = new Date(dateString);
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+               date.getMonth() === today.getMonth() &&
+               date.getFullYear() === today.getFullYear();
+      },
+
       // Initialize store
       initialize: async () => {
         if (get().isInitialized) return;
         
         try {
-          const result = await chrome.storage.local.get([
+          const result = await chrome.storage.sync.get([
             'tasks',
             'completedTasks',
             'dailyStrategy',
@@ -46,12 +56,53 @@ const usePomodoroStore = create<PomodoroStore>()(
             'archivedTasks'
           ]);
 
+          // Move non-today tasks to archived
+          const completedTasks = Array.isArray(result.completedTasks) ? result.completedTasks : [];
+          const archivedTasks = Array.isArray(result.archivedTasks) ? result.archivedTasks : [];
+          
+          const { todayTasks, otherTasks } = completedTasks.reduce(
+            (acc: { todayTasks: PomodoroTask[]; otherTasks: PomodoroTask[] }, task: PomodoroTask) => {
+              if (task.completedAt && isToday(new Date(task.completedAt).toISOString())) {
+                acc.todayTasks.push(task);
+              } else {
+                acc.otherTasks.push(task);
+              }
+              return acc;
+            },
+            { todayTasks: [], otherTasks: [] }
+          );
+
+          // Group other tasks by date
+          const tasksByDate = otherTasks.reduce((acc: { [key: string]: PomodoroTask[] }, task: PomodoroTask) => {
+            if (task.completedAt) {
+              const date = new Date(task.completedAt).toISOString().split('T')[0];
+              if (!acc[date]) {
+                acc[date] = [];
+              }
+              acc[date].push(task);
+            }
+            return acc;
+          }, {});
+
+          // Convert to ArchivedTaskDay format
+          const newArchivedTasks = [
+            ...archivedTasks,
+            ...Object.entries(tasksByDate).map(([date, tasks]) => ({
+              date,
+              tasks,
+              strategy: null
+            }))
+          ];
+
+          // Sort archived tasks by date (newest first)
+          newArchivedTasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
           set({
             tasks: Array.isArray(result.tasks) ? result.tasks : [],
-            completedTasks: Array.isArray(result.completedTasks) ? result.completedTasks : [],
+            completedTasks: todayTasks,
             dailyStrategy: result.dailyStrategy || null,
             selectedTask: typeof result.selectedTask === 'string' ? result.selectedTask : null,
-            archivedTasks: Array.isArray(result.archivedTasks) ? result.archivedTasks : [],
+            archivedTasks: newArchivedTasks,
             isLoading: false,
             isInitialized: true
           });
@@ -87,18 +138,22 @@ const usePomodoroStore = create<PomodoroStore>()(
           tasks: state.tasks.filter(task => task.id !== taskId)
         })),
       completeTask: (taskText: string, elapsedMinutes: number, isFullPomodoro: boolean) => {
-        const completedTask = {
-          id: Date.now().toString(),
+        const completedTask: PomodoroTask = {
+          id: `${Date.now()}`,
           text: taskText,
-          duration: elapsedMinutes,
+          type: 'other',
+          duration: elapsedMinutes.toString(),
           completedAt: new Date().toISOString(),
           pomodoroCount: isFullPomodoro ? 1 : 0
         };
         
-        set(state => ({
-          completedTasks: [...state.completedTasks, completedTask],
-          selectedTask: null
-        }));
+        set((state) => {
+          const newState = {
+            ...state,
+            completedTasks: [...state.completedTasks, completedTask]
+          };
+          return newState;
+        });
       },
       setSelectedTask: (taskText: string | null) => set({ selectedTask: taskText }),
       setTasks: (tasks: PomodoroTask[]) => set({ tasks }),
@@ -145,7 +200,7 @@ const usePomodoroStore = create<PomodoroStore>()(
       persistToStorage: async () => {
         try {
           const state = get();
-          await chrome.storage.local.set({
+          await chrome.storage.sync.set({
             tasks: state.tasks,
             completedTasks: state.completedTasks,
             dailyStrategy: state.dailyStrategy,

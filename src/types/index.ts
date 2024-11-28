@@ -1,7 +1,7 @@
 /**
  * Timer related types
  */
-export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
+export type TimerPhase = 'idle' | 'running' | 'paused' | 'completed';
 
 export interface TimerConfig {
   pomodoro: number;
@@ -27,6 +27,7 @@ export interface PomodoroTask {
   duration: string;
   completedAt?: string;
   completedPomodoros?: number;
+  pomodoroCount: number;
 }
 
 export interface ArchivedTaskDay {
@@ -81,7 +82,7 @@ export interface NotificationOptions {
  */
 export interface WindowOptions {
   url: string;
-  type?: chrome.windows.WindowType;
+  type?: 'normal' | 'popup' | 'panel' | 'detached_panel';  // Chrome window types
   width?: number;
   height?: number;
 }
@@ -133,7 +134,7 @@ export interface UseStorageReturn {
 }
 
 // Timer types
-export interface TimerState {
+export interface TimerStateInterface {
   isRunning: boolean;
   isPaused: boolean;
   timeLeft: number;

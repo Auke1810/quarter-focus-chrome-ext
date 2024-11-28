@@ -36,8 +36,6 @@ const TaskInput: React.FC = () => {
     selectPredefinedTask
   } = usePomodoroStore();
 
-  if (!dailyStrategy) return null;
-
   return (
     <div className="mb-4 sm:mb-6">
       <label className="block text-sm font-medium text-white mb-1 sm:mb-2" htmlFor="current-task">
@@ -53,11 +51,11 @@ const TaskInput: React.FC = () => {
           placeholder="What are you working on?"
           className="w-full p-2 text-sm sm:text-base text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label="Current task input"
-          aria-expanded={showTaskDropdown}
-          aria-controls={showTaskDropdown ? "task-suggestions" : undefined}
+          aria-expanded={showTaskDropdown && !!dailyStrategy}
+          aria-controls={showTaskDropdown && dailyStrategy ? "task-suggestions" : undefined}
           role="combobox"
         />
-        {showTaskDropdown && (
+        {showTaskDropdown && dailyStrategy && (
           <div 
             id="task-suggestions"
             className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-[200px] overflow-y-auto"

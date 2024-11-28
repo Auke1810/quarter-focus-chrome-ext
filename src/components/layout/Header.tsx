@@ -1,5 +1,4 @@
 import React from 'react';
-import usePomodoroStore from '../../store/pomodoroStore';
 
 /**
  * Header Component
@@ -20,8 +19,6 @@ import usePomodoroStore from '../../store/pomodoroStore';
  * )
  */
 const Header: React.FC = () => {
-  const { currentPhase } = usePomodoroStore();
-
   return (
     <header className="app-header">
       <div className="flex items-center gap-3">

@@ -1,6 +1,19 @@
 import React from 'react';
 import { Play, Pause, Square } from 'lucide-react';
-import { useTimer } from '../../hooks/useTimer';
+import { TimerStateInterface } from '../../types';
+
+interface TimerProps {
+  isRunning: boolean;
+  isPaused: boolean;
+  timeLeft: number;
+  currentPhase: TimerStateInterface['currentPhase'];
+  selectedTask: string | null;
+  onStart: () => Promise<void>;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
+  formatTime: (seconds: number) => string;
+}
 
 /**
  * Timer Component
@@ -29,23 +42,32 @@ import { useTimer } from '../../hooks/useTimer';
  * @component
  * @example
  * return (
- *   <Timer />
+ *   <Timer
+ *     isRunning={false}
+ *     isPaused={false}
+ *     timeLeft={1500}
+ *     currentPhase="focus"
+ *     selectedTask={null}
+ *     onStart={() => {}}
+ *     onPause={() => {}}
+ *     onResume={() => {}}
+ *     onStop={() => {}}
+ *     formatTime={(s) => `${Math.floor(s/60)}:${s%60}`}
+ *   />
  * )
  */
-const Timer: React.FC = () => {
-  const {
-    isRunning,
-    isPaused,
-    timeLeft,
-    currentPhase,
-    selectedTask,
-    handleStart,
-    handlePause,
-    handleResume,
-    handleStop,
-    formatTime
-  } = useTimer();
-
+const Timer: React.FC<TimerProps> = ({
+  isRunning,
+  isPaused,
+  timeLeft,
+  currentPhase,
+  selectedTask,
+  onStart,
+  onPause,
+  onResume,
+  onStop,
+  formatTime
+}) => {
   return (
     <div className="text-center mb-4 sm:mb-6">
       <div className="text-[2.5em] font-bold text-white mb-1 sm:mb-2">
@@ -58,7 +80,7 @@ const Timer: React.FC = () => {
       <div className="flex flex-wrap justify-center gap-2 mt-4">
         {!isRunning && !isPaused ? (
           <button
-            onClick={handleStart}
+            onClick={onStart}
             disabled={!selectedTask}
             className={`px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 rounded-md flex items-center text-sm sm:text-base ${
               selectedTask
@@ -74,7 +96,7 @@ const Timer: React.FC = () => {
           <>
             {isPaused ? (
               <button
-                onClick={handleResume}
+                onClick={onResume}
                 className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm sm:text-base"
                 aria-label="Resume timer"
               >
@@ -83,7 +105,7 @@ const Timer: React.FC = () => {
               </button>
             ) : (
               <button
-                onClick={handlePause}
+                onClick={onPause}
                 className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 flex items-center text-sm sm:text-base"
                 aria-label="Pause timer"
               >
@@ -92,7 +114,7 @@ const Timer: React.FC = () => {
               </button>
             )}
             <button
-              onClick={handleStop}
+              onClick={onStop}
               className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center text-sm sm:text-base"
               aria-label="Stop timer"
             >

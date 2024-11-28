@@ -29,6 +29,7 @@ import { useTimer } from '../../hooks/useTimer';
  *   <TimerContainer />
  * )
  */
+
 const TimerContainer: React.FC = () => {
   const {
     isRunning,
@@ -44,7 +45,7 @@ const TimerContainer: React.FC = () => {
   } = useTimer();
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+    <div className="timer-container">
       <Timer
         isRunning={isRunning}
         isPaused={isPaused}

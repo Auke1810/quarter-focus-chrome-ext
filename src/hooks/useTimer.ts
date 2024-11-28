@@ -1,14 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import usePomodoroStore from '../store/pomodoroStore';
+import { useSound } from './useSound';
 
 /** Constants for timer durations */
-const FOCUS_TIME = 25 * 60; // 25 minutes in seconds
-const BREAK_TIME = 5 * 60; // 5 minutes in seconds
+const FOCUS_TIME = 25*60; // 25 minute in seconds
+const BREAK_TIME = 5*60; // 5 minutes in seconds
 
 /**
- * Custom hook for managing the Pomodoro timer functionality
- * Handles timer state, phase transitions, and task completion
- * @returns {Object} Timer control methods and state
+ * Custom hook for managing the Pomodoro timer
+ * Handles focus sessions, breaks, and task completion
  */
 export const useTimer = () => {
   const {
@@ -21,36 +21,93 @@ export const useTimer = () => {
     setCurrentPhase,
     setIsRunning,
     setIsPaused,
-    completeTask,
-    setSelectedTask
+    completeTask
   } = usePomodoroStore();
 
+  const { playNotificationSound, playCompletionSound } = useSound();
+  
   /** Reference to the timer interval */
   const timerRef = useRef<number>();
 
   /**
-   * Handles task completion and cleanup
+   * Initiates the break phase after focus completion
+   * Keeps the timer running and maintains task visibility
    */
-  const handleTaskCompletion = useCallback(() => {
-    if (selectedTask) {
-      const elapsedMinutes = Math.ceil((FOCUS_TIME - timeLeft) / 60);
-      const isFullPomodoro = timeLeft === 0; // Only count if timer reached 0
-      completeTask(selectedTask, elapsedMinutes, isFullPomodoro);
-      setSelectedTask(null);
+  const startBreakPhase = useCallback(() => {
+    setCurrentPhase('break');
+    setTimeLeft(BREAK_TIME);
+    setIsRunning(true);
+    setIsPaused(false);
+  }, [setCurrentPhase, setTimeLeft, setIsRunning, setIsPaused]);
+
+  /**
+   * Handles task completion and initiates break phase
+   * Records pomodoro completion while maintaining task
+   */
+  const handleTaskCompletion = useCallback(async () => {
+    if (!selectedTask) return;
+
+    // Record pomodoro completion
+    const elapsedMinutes = Math.ceil((FOCUS_TIME - timeLeft) / 60);
+    completeTask(selectedTask, elapsedMinutes, true);
+
+    try {
+      // Play completion sound and show notification
+      await playCompletionSound('Focus session complete! Time for a break.');
+    } catch (error) {
+      console.error('Error playing completion sound:', error);
     }
-  }, [selectedTask, timeLeft, completeTask, setSelectedTask]);
+
+    // Start break phase
+    startBreakPhase();
+  }, [selectedTask, timeLeft, completeTask, playCompletionSound, startBreakPhase]);
+
+  /**
+   * Resets timer state for a new focus session
+   * Maintains current task while resetting timer values
+   */
+  const resetForNextSession = useCallback(() => {
+    setCurrentPhase('focus');
+    setTimeLeft(FOCUS_TIME);
+    setIsRunning(false);
+    setIsPaused(false);
+  }, [setCurrentPhase, setTimeLeft, setIsRunning, setIsPaused]);
+
+  /**
+   * Handles break completion
+   * Plays notification and prepares for next focus session
+   */
+  const handleBreakComplete = useCallback(async () => {
+    try {
+      // Play notification for break end
+      await playNotificationSound('Break time is over. Ready to focus?');
+    } catch (error) {
+      console.error('Error playing notification sound:', error);
+    }
+
+    // Reset for next focus session
+    resetForNextSession();
+  }, [playNotificationSound, resetForNextSession]);
 
   /**
    * Starts a new Pomodoro session
    * Requires a selected task to begin
    */
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     if (!selectedTask) return;
+    
+    // Request notification permissions on first start
+    try {
+      await playNotificationSound('Timer started! Focus time begins.');
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+    }
+    
     setIsRunning(true);
     setIsPaused(false);
     setTimeLeft(FOCUS_TIME);
     setCurrentPhase('focus');
-  }, [selectedTask, setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase]);
+  }, [selectedTask, setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase, playNotificationSound]);
 
   /**
    * Pauses the current timer
@@ -75,60 +132,53 @@ export const useTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
-    if (currentPhase === 'focus' && selectedTask) {
-      handleTaskCompletion();
-    }
-    setIsRunning(false);
-    setIsPaused(false);
-    setTimeLeft(FOCUS_TIME);
-    setCurrentPhase('focus');
-  }, [setIsRunning, setIsPaused, setTimeLeft, setCurrentPhase, currentPhase, selectedTask, handleTaskCompletion]);
+    resetForNextSession();
+  }, [resetForNextSession]);
 
   /**
    * Formats time in seconds to MM:SS display format
-   * @param {number} timeInSeconds - Time to format in seconds
-   * @returns {string} Formatted time string (MM:SS)
    */
-  const formatTime = useCallback((timeInSeconds: number): string => {
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = timeInSeconds % 60;
+  const formatTime = useCallback((seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    seconds = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }, []);
 
+  /**
+   * Main timer effect
+   * Handles countdown and phase transitions
+   */
   useEffect(() => {
     if (isRunning && !isPaused) {
       timerRef.current = window.setInterval(() => {
         setTimeLeft((prevTime: number) => {
-          if (prevTime <= 1) {
-            // Timer completed
+          const newTime = prevTime - 1;
+          
+          if (newTime <= 0) {
+            // Clear interval first
             clearInterval(timerRef.current);
             
+            // Then handle phase completion
             if (currentPhase === 'focus') {
-              // Complete the task if it was a focus session
               handleTaskCompletion();
-              
-              // Switch to break
-              setCurrentPhase('break');
-              setTimeLeft(BREAK_TIME);
             } else {
-              // Break completed, reset timer
-              setIsRunning(false);
-              setCurrentPhase('focus');
-              setTimeLeft(FOCUS_TIME);
+              handleBreakComplete();
             }
             return 0;
           }
-          return prevTime - 1;
+          
+          return newTime;
         });
       }, 1000);
 
+      // Cleanup interval on unmount or when timer stops
       return () => {
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
       };
     }
-  }, [isRunning, isPaused, currentPhase, handleTaskCompletion, setTimeLeft, setCurrentPhase, setIsRunning]);
+  }, [isRunning, isPaused, currentPhase, handleTaskCompletion, handleBreakComplete]);
 
   return {
     isRunning,
@@ -140,8 +190,7 @@ export const useTimer = () => {
     handlePause,
     handleResume,
     handleStop,
-    formatTime,
-    handleTaskCompletion
+    formatTime
   };
 };
 

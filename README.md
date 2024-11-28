@@ -83,6 +83,7 @@ quarter-focus-chrome-ext/
 - [x] Task duration tracking
 - [x] Visual indicators for tasks exceeding planned time
 - [x] Being able to stop the timer when break has ended
+- [ ] Uses chrome.storage.sync as primary storage
 - [ ] Save task after first pomodoro completion display under "Tasks done today" and update after each pomodoro.
 - [ ] If the timer runs, display a countdown timer in an overlay.
 - VERSION 3.
