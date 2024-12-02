@@ -1,4 +1,4 @@
-import React from 'react';
+import { FunctionComponent as FC } from 'react';
 
 /**
  * Header Component
@@ -18,7 +18,7 @@ import React from 'react';
  *   <Header />
  * )
  */
-const Header: React.FC = () => {
+const Header: FC = () => {
   return (
     <header className="app-header">
       <div className="flex items-center gap-3">

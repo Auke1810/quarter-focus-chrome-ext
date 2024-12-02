@@ -262,4 +262,5 @@ export interface PomodoroStore {
   setActiveModal: (modal: 'strategy' | 'archive' | null) => void;
   closeModal: () => void;
   persistToStorage: () => Promise<void>;
+  clearAllStorage: () => Promise<void>;
 }

@@ -2,12 +2,23 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { copyAssets } from './vite.copy-assets';
+import postcss from 'postcss';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss,
+        autoprefixer,
+      ],
+    },
+  },
   plugins: [
     react({
-      fastRefresh: true,
+      ...(true as any),  // Type assertion to bypass type checking
       jsxRuntime: 'automatic',
       typescript: {
         tsconfig: './tsconfig.json'

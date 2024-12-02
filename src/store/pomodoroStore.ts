@@ -56,6 +56,12 @@ const usePomodoroStore = create<PomodoroStore>()(
             'archivedTasks'
           ]);
 
+          // Check if daily strategy is from a previous day
+          let dailyStrategy = result.dailyStrategy || null;
+          if (dailyStrategy && dailyStrategy.date && !isToday(dailyStrategy.date)) {
+            dailyStrategy = null;
+          }
+
           // Move non-today tasks to archived
           const completedTasks = Array.isArray(result.completedTasks) ? result.completedTasks : [];
           const archivedTasks = Array.isArray(result.archivedTasks) ? result.archivedTasks : [];
@@ -84,25 +90,67 @@ const usePomodoroStore = create<PomodoroStore>()(
             return acc;
           }, {});
 
-          // Convert to ArchivedTaskDay format
+          console.error('DEBUG: tasksByDate before conversion', {
+            tasksByDate: JSON.stringify(tasksByDate),
+            tasksByDateKeys: Object.keys(tasksByDate)
+          });
+
           const newArchivedTasks = [
             ...archivedTasks,
-            ...Object.entries(tasksByDate).map(([date, tasks]) => ({
-              date,
-              tasks,
-              strategy: null
-            }))
+            ...Object.entries(tasksByDate).map(([date, tasks]) => {
+              // Add type guard to ensure tasks is an array of PomodoroTask
+              const typedTasks = Array.isArray(tasks) 
+                ? tasks 
+                : tasks instanceof Object 
+                  ? Object.values(tasks) as PomodoroTask[] 
+                  : [];
+
+              console.error(`DEBUG: Converting date ${date}`, {
+                tasksType: typeof tasks,
+                tasksIsArray: Array.isArray(tasks),
+                tasksLength: typedTasks.length,
+                firstTaskKeys: typedTasks.length > 0 ? Object.keys(typedTasks[0]) : 'No tasks'
+              });
+
+              return {
+                date,
+                tasks: typedTasks,  // Use the typed tasks
+                strategy: null
+              };
+            })
           ];
 
+          const sanitizedArchivedTasks = newArchivedTasks.map(dayData => {
+            console.error('DEBUG: Sanitizing archived tasks', {
+              date: dayData.date,
+              tasksType: typeof dayData.tasks,
+              tasksIsArray: Array.isArray(dayData.tasks),
+              tasksLength: dayData.tasks.length,
+              firstTaskKeys: dayData.tasks.length > 0 ? Object.keys(dayData.tasks[0]) : 'No tasks'
+            });
+
+            return {
+              ...dayData,
+              tasks: Array.isArray(dayData.tasks) ? dayData.tasks : []
+            };
+          });
+
+          console.error('DEBUG: Final sanitized archived tasks', {
+            sanitizedArchivedTasksLength: sanitizedArchivedTasks.length,
+            firstArchivedTaskDate: sanitizedArchivedTasks[0]?.date,
+            firstArchivedTaskTasksType: typeof sanitizedArchivedTasks[0]?.tasks,
+            firstArchivedTaskTasksIsArray: Array.isArray(sanitizedArchivedTasks[0]?.tasks)
+          });
+
           // Sort archived tasks by date (newest first)
-          newArchivedTasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          sanitizedArchivedTasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
           set({
             tasks: Array.isArray(result.tasks) ? result.tasks : [],
             completedTasks: todayTasks,
-            dailyStrategy: result.dailyStrategy || null,
+            dailyStrategy: dailyStrategy,
             selectedTask: typeof result.selectedTask === 'string' ? result.selectedTask : null,
-            archivedTasks: newArchivedTasks,
+            archivedTasks: sanitizedArchivedTasks,
             isLoading: false,
             isInitialized: true
           });
@@ -188,7 +236,10 @@ const usePomodoroStore = create<PomodoroStore>()(
 
       // Strategy actions
       setDailyStrategy: (strategy: PomodoroDailyStrategy | null) => {
-        set({ dailyStrategy: strategy });
+        const strategyWithDate = strategy 
+          ? { ...strategy, date: new Date().toISOString() } 
+          : strategy;
+        set({ dailyStrategy: strategyWithDate });
         get().setActiveModal(null);
       },
 
@@ -199,18 +250,34 @@ const usePomodoroStore = create<PomodoroStore>()(
       // Storage sync
       persistToStorage: async () => {
         try {
-          const state = get();
           await chrome.storage.sync.set({
-            tasks: state.tasks,
-            completedTasks: state.completedTasks,
-            dailyStrategy: state.dailyStrategy,
-            selectedTask: state.selectedTask,
-            archivedTasks: state.archivedTasks
+            tasks: get().tasks,
+            completedTasks: get().completedTasks,
+            dailyStrategy: get().dailyStrategy,
+            selectedTask: get().selectedTask,
+            archivedTasks: get().archivedTasks
           });
         } catch (error) {
           console.error('Error persisting to storage:', error);
         }
-      }
+      },
+
+      // New method to clear all storage
+      clearAllStorage: async () => {
+        try {
+          await chrome.storage.sync.clear();
+          console.error('ALL STORAGE CLEARED');
+          
+          // Reset store to initial state
+          set({
+            ...INITIAL_STATE,
+            isLoading: false,
+            isInitialized: true
+          });
+        } catch (error) {
+          console.error('Error clearing storage:', error);
+        }
+      },
     }),
     {
       name: 'pomodoro-store',
